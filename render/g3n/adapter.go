@@ -6,183 +6,279 @@ import (
 
 	"github.com/alexanderi96/go-space-engine/physics/body"
 	"github.com/alexanderi96/go-space-engine/render/adapter"
-	"github.com/alexanderi96/go-space-engine/simulation/events"
 	"github.com/alexanderi96/go-space-engine/simulation/world"
+
+	"github.com/g3n/engine/app"
+	"github.com/g3n/engine/camera"
+	"github.com/g3n/engine/core"
+	"github.com/g3n/engine/geometry"
+	"github.com/g3n/engine/gls"
+	"github.com/g3n/engine/graphic"
+	"github.com/g3n/engine/light"
+	"github.com/g3n/engine/material"
+	"github.com/g3n/engine/math32"
+	"github.com/g3n/engine/renderer"
+	"github.com/g3n/engine/util/helper"
 )
+
+// BodyMesh rappresenta un mesh con una luce puntuale associata
+type BodyMesh struct {
+	Mesh  *graphic.Mesh
+	Light *light.Point
+}
 
 // G3NAdapter è un adattatore per il rendering con G3N
 type G3NAdapter struct {
-	*adapter.BaseRenderAdapter
-	eventListener *G3NEventListener
+	app        *app.Application
+	scene      *core.Node
+	camera     *camera.Camera
+	cameraCtrl *camera.OrbitControl
+	bodyMeshes map[body.ID]*BodyMesh
+	bgColor    adapter.Color
+	debugMode  bool
 }
 
 // NewG3NAdapter crea un nuovo adattatore G3N
 func NewG3NAdapter() *G3NAdapter {
-	renderer := NewG3NRenderer()
-	baseAdapter := adapter.NewBaseRenderAdapter(renderer)
-
-	adapter := &G3NAdapter{
-		BaseRenderAdapter: baseAdapter,
+	return &G3NAdapter{
+		bodyMeshes: make(map[body.ID]*BodyMesh),
+		bgColor:    adapter.NewColor(1.0, 1.0, 1.0, 1.0), // Sfondo bianco
+		debugMode:  false,
 	}
-
-	// Crea il listener di eventi
-	adapter.eventListener = NewG3NEventListener(adapter)
-
-	return adapter
 }
 
-// GetG3NRenderer restituisce il renderer G3N sottostante
-func (ga *G3NAdapter) GetG3NRenderer() *G3NRenderer {
-	return ga.GetRenderer().(*G3NRenderer)
-}
-
-// GetEventListener restituisce il listener di eventi
-func (ga *G3NAdapter) GetEventListener() *G3NEventListener {
-	return ga.eventListener
+// GetRenderer restituisce il renderer (implementazione dell'interfaccia RenderAdapter)
+func (ga *G3NAdapter) GetRenderer() adapter.Renderer {
+	// Questo adapter non utilizza l'interfaccia Renderer standard
+	// Restituisce nil perché implementa direttamente i metodi necessari
+	return nil
 }
 
 // RenderWorld renderizza il mondo
 func (ga *G3NAdapter) RenderWorld(w world.World) {
-	// Chiama il metodo base
-	ga.BaseRenderAdapter.RenderWorld(w)
+	// Aggiorna la posizione dei mesh
+	for _, b := range w.GetBodies() {
+		if bodyMesh, exists := ga.bodyMeshes[b.ID()]; exists {
+			pos := b.Position()
+			bodyMesh.Mesh.SetPosition(float32(pos.X()), float32(pos.Y()), float32(pos.Z()))
+			if bodyMesh.Light != nil {
+				bodyMesh.Light.SetPosition(float32(pos.X()), float32(pos.Y()), float32(pos.Z()))
+			}
+		} else {
+			// Se il corpo non ha un mesh associato, crealo
+			ga.createMeshForBody(b)
+		}
+	}
 }
 
 // Run avvia il loop di rendering
 func (ga *G3NAdapter) Run(updateFunc func(deltaTime time.Duration)) {
-	// Delega al renderer G3N
-	ga.GetG3NRenderer().Run(updateFunc)
+	// Inizializza l'applicazione G3N se non è già stata inizializzata
+	if ga.app == nil {
+		ga.initialize()
+	}
+
+	// Avvia il loop di rendering
+	ga.app.Run(func(renderer *renderer.Renderer, deltaTime time.Duration) {
+		// Operazioni OpenGL esplicite
+		gl := ga.app.Gls()
+		gl.Clear(gls.DEPTH_BUFFER_BIT | gls.STENCIL_BUFFER_BIT | gls.COLOR_BUFFER_BIT)
+		gl.Enable(gls.DEPTH_TEST)
+
+		// Chiama la funzione di aggiornamento fornita
+		if updateFunc != nil {
+			updateFunc(deltaTime)
+		}
+
+		// Renderizza la scena
+		renderer.Render(ga.scene, ga.camera)
+
+		// Disabilita il depth testing dopo il rendering
+		gl.Disable(gls.DEPTH_TEST)
+	})
+}
+
+// initialize inizializza l'adapter
+func (ga *G3NAdapter) initialize() {
+	// Crea l'applicazione G3N
+	ga.app = app.App()
+
+	// Crea la scena
+	ga.scene = core.NewNode()
+
+	// Crea la camera
+	ga.camera = camera.New(1)
+	ga.camera.SetPosition(0, 1, 15)
+	ga.camera.LookAt(&math32.Vector3{0, 0, 0}, &math32.Vector3{0, 1, 0})
+	ga.scene.Add(ga.camera)
+
+	// Crea il controllo orbitale della camera
+	ga.cameraCtrl = camera.NewOrbitControl(ga.camera)
+
+	// Imposta il colore di sfondo
+	ga.app.Gls().ClearColor(float32(ga.bgColor.R), float32(ga.bgColor.G), float32(ga.bgColor.B), float32(ga.bgColor.A))
+
+	// Aggiungi luci
+	ambLight := light.NewAmbient(&math32.Color{0.8, 0.8, 0.8}, 1.0)
+	ga.scene.Add(ambLight)
+
+	pointLight1 := light.NewPoint(&math32.Color{1, 1, 1}, 2.0)
+	pointLight1.SetPosition(10, 10, 10)
+	ga.scene.Add(pointLight1)
+
+	pointLight2 := light.NewPoint(&math32.Color{1, 1, 1}, 2.0)
+	pointLight2.SetPosition(-10, 10, 10)
+	ga.scene.Add(pointLight2)
+
+	pointLight3 := light.NewPoint(&math32.Color{1, 1, 1}, 2.0)
+	pointLight3.SetPosition(0, 10, -10)
+	ga.scene.Add(pointLight3)
+
+	// Crea gli assi
+	axes := helper.NewAxes(2)
+	ga.scene.Add(axes)
+
+	// Crea una griglia per riferimento
+	grid := helper.NewGrid(20, 1, &math32.Color{0.4, 0.4, 0.4})
+	ga.scene.Add(grid)
+}
+
+// createMeshForBody crea un mesh per un corpo fisico
+func (ga *G3NAdapter) createMeshForBody(b body.Body) {
+	// Crea una sfera per rappresentare il corpo
+	radius := float32(b.Radius().Value())
+	geom := geometry.NewSphere(float64(radius), 32, 16)
+
+	// Crea un materiale in base al materiale del corpo fisico
+	mat := material.NewStandard(&math32.Color{0.8, 0.8, 0.8})
+
+	// Se il materiale del corpo ha un colore, usalo
+	var bodyColor math32.Color
+	if b.Material() != nil {
+		// Qui dovresti mappare il materiale fisico a un colore G3N
+		// Per semplicità, usiamo un colore predefinito per ogni tipo di materiale
+		switch b.Material().Name() {
+		case "Iron":
+			bodyColor = math32.Color{0.6, 0.6, 0.6}
+		case "Rock":
+			bodyColor = math32.Color{0.5, 0.3, 0.2}
+		case "Ice":
+			bodyColor = math32.Color{0.8, 0.9, 1.0}
+		case "Copper":
+			bodyColor = math32.Color{0.8, 0.5, 0.2}
+		default:
+			// Colore casuale basato sull'ID del corpo (che è una stringa)
+			id := string(b.ID())
+			hash := 0
+			for i := 0; i < len(id); i++ {
+				hash = 31*hash + int(id[i])
+			}
+			if hash < 0 {
+				hash = -hash
+			}
+			r := float32(hash%255) / 255.0
+			g := float32((hash/255)%255) / 255.0
+			b := float32((hash/(255*255))%255) / 255.0
+			bodyColor = math32.Color{r, g, b}
+		}
+		mat.SetColor(&bodyColor)
+	} else {
+		bodyColor = math32.Color{0.8, 0.8, 0.8}
+	}
+
+	// Crea un mesh con la geometria e il materiale
+	mesh := graphic.NewMesh(geom, mat)
+
+	// Imposta la posizione del mesh
+	pos := b.Position()
+	mesh.SetPosition(float32(pos.X()), float32(pos.Y()), float32(pos.Z()))
+
+	// Crea una luce puntuale per il corpo
+	bodyLight := light.NewPoint(&bodyColor, 0.5)
+	bodyLight.SetPosition(float32(pos.X()), float32(pos.Y()), float32(pos.Z()))
+	bodyLight.SetLinearDecay(1.0)
+	bodyLight.SetQuadraticDecay(1.0)
+	ga.scene.Add(bodyLight)
+
+	// Aggiungi il mesh alla scena
+	ga.scene.Add(mesh)
+
+	// Memorizza il BodyMesh nella mappa
+	ga.bodyMeshes[b.ID()] = &BodyMesh{
+		Mesh:  mesh,
+		Light: bodyLight,
+	}
 }
 
 // SetDebugMode imposta la modalità di debug
 func (ga *G3NAdapter) SetDebugMode(debug bool) {
-	ga.BaseRenderAdapter.SetDebugMode(debug)
+	ga.debugMode = debug
 }
 
-// SetRenderVelocities imposta se renderizzare i vettori velocità
-func (ga *G3NAdapter) SetRenderVelocities(render bool) {
-	ga.BaseRenderAdapter.SetRenderVelocities(render)
-}
-
-// SetRenderAccelerations imposta se renderizzare i vettori accelerazione
-func (ga *G3NAdapter) SetRenderAccelerations(render bool) {
-	ga.BaseRenderAdapter.SetRenderAccelerations(render)
-}
-
-// SetRenderBoundingBoxes imposta se renderizzare i bounding box
-func (ga *G3NAdapter) SetRenderBoundingBoxes(render bool) {
-	ga.BaseRenderAdapter.SetRenderBoundingBoxes(render)
+// IsDebugMode restituisce true se la modalità di debug è attiva
+func (ga *G3NAdapter) IsDebugMode() bool {
+	return ga.debugMode
 }
 
 // SetRenderOctree imposta se renderizzare l'octree
 func (ga *G3NAdapter) SetRenderOctree(render bool) {
-	ga.BaseRenderAdapter.SetRenderOctree(render)
+	// Non implementato in questo adapter
+}
+
+// IsRenderOctree restituisce true se l'octree viene renderizzato
+func (ga *G3NAdapter) IsRenderOctree() bool {
+	return false
+}
+
+// SetRenderBoundingBoxes imposta se renderizzare i bounding box
+func (ga *G3NAdapter) SetRenderBoundingBoxes(render bool) {
+	// Non implementato in questo adapter
+}
+
+// IsRenderBoundingBoxes restituisce true se i bounding box vengono renderizzati
+func (ga *G3NAdapter) IsRenderBoundingBoxes() bool {
+	return false
+}
+
+// SetRenderVelocities imposta se renderizzare i vettori velocità
+func (ga *G3NAdapter) SetRenderVelocities(render bool) {
+	// Non implementato in questo adapter
+}
+
+// IsRenderVelocities restituisce true se i vettori velocità vengono renderizzati
+func (ga *G3NAdapter) IsRenderVelocities() bool {
+	return false
+}
+
+// SetRenderAccelerations imposta se renderizzare i vettori accelerazione
+func (ga *G3NAdapter) SetRenderAccelerations(render bool) {
+	// Non implementato in questo adapter
+}
+
+// IsRenderAccelerations restituisce true se i vettori accelerazione vengono renderizzati
+func (ga *G3NAdapter) IsRenderAccelerations() bool {
+	return false
 }
 
 // SetRenderForces imposta se renderizzare i vettori forza
 func (ga *G3NAdapter) SetRenderForces(render bool) {
-	ga.BaseRenderAdapter.SetRenderForces(render)
+	// Non implementato in questo adapter
 }
 
-// G3NEventListener ascolta gli eventi della simulazione e aggiorna il renderer G3N
-type G3NEventListener struct {
-	adapter *G3NAdapter
+// IsRenderForces restituisce true se i vettori forza vengono renderizzati
+func (ga *G3NAdapter) IsRenderForces() bool {
+	return false
 }
 
-// NewG3NEventListener crea un nuovo listener di eventi per G3N
-func NewG3NEventListener(adapter *G3NAdapter) *G3NEventListener {
-	return &G3NEventListener{
-		adapter: adapter,
+// SetBackgroundColor imposta il colore di sfondo
+func (ga *G3NAdapter) SetBackgroundColor(color adapter.Color) {
+	ga.bgColor = color
+	if ga.app != nil {
+		ga.app.Gls().ClearColor(float32(color.R), float32(color.G), float32(color.B), float32(color.A))
 	}
 }
 
-// OnEvent gestisce gli eventi della simulazione
-func (l *G3NEventListener) OnEvent(event events.Event) {
-	renderer := l.adapter.GetG3NRenderer()
-
-	switch event.Type {
-	case events.BodyAdded:
-		// Quando un corpo viene aggiunto, lo renderizziamo
-		if bodyEvent, ok := event.Data.(events.BodyEvent); ok {
-			renderer.RenderBody(bodyEvent.Body)
-		}
-
-	case events.BodyRemoved:
-		// Quando un corpo viene rimosso, rimuoviamo il suo nodo grafico
-		if bodyEvent, ok := event.Data.(events.BodyEvent); ok {
-			renderer.nodeMutex.Lock()
-			if node, exists := renderer.bodyNodes[bodyEvent.Body.ID()]; exists {
-				renderer.scene.Remove(node)
-				delete(renderer.bodyNodes, bodyEvent.Body.ID())
-			}
-			renderer.nodeMutex.Unlock()
-		}
-
-	case events.Collision:
-		// Quando avviene una collisione, possiamo visualizzare un effetto
-		if collisionEvent, ok := event.Data.(events.CollisionEvent); ok {
-			// Visualizza un effetto di collisione (ad esempio, una sfera rossa temporanea)
-			point := collisionEvent.Info.Point
-			renderer.RenderSphere(point, 0.2, adapter.NewColor(1, 0, 0, 0.7))
-		}
-
-	case events.BoundaryCollision:
-		// Quando un corpo collide con i limiti del mondo, possiamo visualizzare un effetto
-		if boundaryEvent, ok := event.Data.(events.BoundaryCollisionEvent); ok {
-			// Visualizza un effetto di collisione con i limiti
-			pos := boundaryEvent.Body.Position()
-			renderer.RenderSphere(pos, 0.2, adapter.NewColor(1, 1, 0, 0.7))
-		}
-
-	case events.SimulationStep:
-		// Ad ogni passo della simulazione, aggiorniamo la visualizzazione
-		// Questo è già gestito dal metodo RenderWorld
-	}
-}
-
-// G3NWorldObserver osserva il mondo fisico e genera eventi
-type G3NWorldObserver struct {
-	world       world.World
-	eventSystem events.EventSystem
-	previousIDs map[body.ID]bool
-}
-
-// NewG3NWorldObserver crea un nuovo observer per il mondo fisico
-func NewG3NWorldObserver(w world.World, es events.EventSystem) *G3NWorldObserver {
-	return &G3NWorldObserver{
-		world:       w,
-		eventSystem: es,
-		previousIDs: make(map[body.ID]bool),
-	}
-}
-
-// Update aggiorna l'observer
-func (o *G3NWorldObserver) Update() {
-	// Ottieni tutti i corpi nel mondo
-	bodies := o.world.GetBodies()
-
-	// Crea un set di ID dei corpi correnti
-	currentIDs := make(map[body.ID]bool)
-	for _, b := range bodies {
-		currentIDs[b.ID()] = true
-
-		// Se il corpo non era presente nel passo precedente, genera un evento BodyAdded
-		if !o.previousIDs[b.ID()] {
-			o.eventSystem.DispatchEvent(events.Event{
-				Type: events.BodyAdded,
-				Data: events.BodyEvent{Body: b},
-			})
-		}
-	}
-
-	// Controlla se ci sono corpi che sono stati rimossi
-	for id := range o.previousIDs {
-		if !currentIDs[id] {
-			// Il corpo è stato rimosso, genera un evento BodyRemoved
-			// Nota: non abbiamo il corpo, solo il suo ID
-			// Per ora, non generiamo l'evento
-		}
-	}
-
-	// Aggiorna il set di ID precedenti
-	o.previousIDs = currentIDs
+// NewColor crea un nuovo colore
+func NewColor(r, g, b, a float64) adapter.Color {
+	return adapter.NewColor(r, g, b, a)
 }

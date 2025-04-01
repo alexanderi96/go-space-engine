@@ -23,13 +23,15 @@ type Force interface {
 
 // GravitationalForce implementa la forza gravitazionale
 type GravitationalForce struct {
-	G float64 // Costante gravitazionale
+	G     float64 // Costante gravitazionale
+	Theta float64 // Parametro di approssimazione per l'algoritmo Barnes-Hut
 }
 
 // NewGravitationalForce crea una nuova forza gravitazionale
 func NewGravitationalForce() *GravitationalForce {
 	return &GravitationalForce{
-		G: constants.G,
+		G:     constants.G,
+		Theta: 0.5, // Valore predefinito che bilancia precisione ed efficienza
 	}
 }
 
@@ -72,6 +74,16 @@ func (gf *GravitationalForce) ApplyBetween(a, b body.Body) (vector.Vector3, vect
 // IsGlobal restituisce true perché la gravità è una forza globale
 func (gf *GravitationalForce) IsGlobal() bool {
 	return true
+}
+
+// SetTheta imposta il parametro di approssimazione per l'algoritmo Barnes-Hut
+func (gf *GravitationalForce) SetTheta(theta float64) {
+	gf.Theta = theta
+}
+
+// GetTheta restituisce il parametro di approssimazione per l'algoritmo Barnes-Hut
+func (gf *GravitationalForce) GetTheta() float64 {
+	return gf.Theta
 }
 
 // ConstantForce implementa una forza costante

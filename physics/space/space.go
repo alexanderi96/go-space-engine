@@ -103,17 +103,23 @@ type Octree struct {
 	objects    []body.Body // Oggetti in questo nodo
 	children   [8]*Octree  // Figli dell'octree
 	divided    bool        // Indica se l'octree è stato diviso
+
+	// Campi per il calcolo della gravità
+	totalMass    float64        // Massa totale di tutti i corpi in questo nodo e nei suoi figli
+	centerOfMass vector.Vector3 // Centro di massa di tutti i corpi in questo nodo e nei suoi figli
 }
 
 // NewOctree crea un nuovo octree
 func NewOctree(bounds *AABB, maxObjects, maxLevels int) *Octree {
 	return &Octree{
-		bounds:     bounds,
-		maxObjects: maxObjects,
-		maxLevels:  maxLevels,
-		level:      0,
-		objects:    make([]body.Body, 0),
-		divided:    false,
+		bounds:       bounds,
+		maxObjects:   maxObjects,
+		maxLevels:    maxLevels,
+		level:        0,
+		objects:      make([]body.Body, 0),
+		divided:      false,
+		totalMass:    0,
+		centerOfMass: vector.Zero3(),
 	}
 }
 
@@ -127,11 +133,17 @@ func (ot *Octree) Insert(b body.Body) {
 				ot.children[index].Insert(b)
 			}
 		}
+
+		// Aggiorna il centro di massa e la massa totale
+		ot.updateMassAndCenterOfMass(b, true)
 		return
 	}
 
 	// Aggiungi l'oggetto a questo nodo
 	ot.objects = append(ot.objects, b)
+
+	// Aggiorna il centro di massa e la massa totale
+	ot.updateMassAndCenterOfMass(b, true)
 
 	// Verifica se è necessario dividere l'octree
 	if len(ot.objects) > ot.maxObjects && ot.level < ot.maxLevels {
@@ -163,6 +175,9 @@ func (ot *Octree) Remove(b body.Body) {
 				ot.children[index].Remove(b)
 			}
 		}
+
+		// Aggiorna il centro di massa e la massa totale
+		ot.updateMassAndCenterOfMass(b, false)
 		return
 	}
 
@@ -173,6 +188,9 @@ func (ot *Octree) Remove(b body.Body) {
 			lastIndex := len(ot.objects) - 1
 			ot.objects[i] = ot.objects[lastIndex]
 			ot.objects = ot.objects[:lastIndex]
+
+			// Aggiorna il centro di massa e la massa totale
+			ot.updateMassAndCenterOfMass(b, false)
 			break
 		}
 	}
@@ -234,6 +252,10 @@ func (ot *Octree) QuerySphere(center vector.Vector3, radius float64) []body.Body
 // Clear rimuove tutti i corpi dall'octree
 func (ot *Octree) Clear() {
 	ot.objects = make([]body.Body, 0)
+
+	// Resetta il centro di massa e la massa totale
+	ot.totalMass = 0
+	ot.centerOfMass = vector.Zero3()
 
 	if ot.divided {
 		for i := 0; i < 8; i++ {
@@ -364,4 +386,164 @@ func (ot *Octree) getIndices(b body.Body) []int {
 	}
 
 	return result
+}
+
+// updateMassAndCenterOfMass aggiorna il centro di massa e la massa totale
+func (ot *Octree) updateMassAndCenterOfMass(b body.Body, adding bool) {
+	mass := b.Mass().Value()
+	position := b.Position()
+
+	if adding {
+		// Aggiunge il corpo
+		oldTotalMass := ot.totalMass
+		ot.totalMass += mass
+
+		if oldTotalMass > 0 {
+			// Aggiorna il centro di massa
+			ot.centerOfMass = ot.centerOfMass.Scale(oldTotalMass).Add(position.Scale(mass)).Scale(1.0 / ot.totalMass)
+		} else {
+			// Se è il primo corpo, il centro di massa è la sua posizione
+			ot.centerOfMass = position
+		}
+	} else {
+		// Rimuove il corpo
+		if ot.totalMass > mass {
+			// Aggiorna il centro di massa
+			oldTotalMass := ot.totalMass
+			ot.totalMass -= mass
+			ot.centerOfMass = ot.centerOfMass.Scale(oldTotalMass).Sub(position.Scale(mass)).Scale(1.0 / ot.totalMass)
+		} else {
+			// Se era l'ultimo corpo, resetta il centro di massa
+			ot.totalMass = 0
+			ot.centerOfMass = vector.Zero3()
+		}
+	}
+
+	// Se l'octree è diviso, propaga l'aggiornamento ai figli
+	if ot.divided {
+		// Ricalcola il centro di massa dai figli
+		ot.totalMass = 0
+		weightedPosition := vector.Zero3()
+
+		for i := 0; i < 8; i++ {
+			if ot.children[i] != nil {
+				childMass := ot.children[i].totalMass
+				ot.totalMass += childMass
+				if childMass > 0 {
+					weightedPosition = weightedPosition.Add(ot.children[i].centerOfMass.Scale(childMass))
+				}
+			}
+		}
+
+		if ot.totalMass > 0 {
+			ot.centerOfMass = weightedPosition.Scale(1.0 / ot.totalMass)
+		}
+	}
+}
+
+// CalculateGravity calcola la forza gravitazionale su un corpo utilizzando l'algoritmo Barnes-Hut
+func (ot *Octree) CalculateGravity(b body.Body, theta float64) vector.Vector3 {
+	force := vector.Zero3()
+	ot.calculateGravityRecursive(b, theta, &force)
+	return force
+}
+
+// calculateGravityRecursive calcola ricorsivamente la forza gravitazionale
+func (ot *Octree) calculateGravityRecursive(b body.Body, theta float64, force *vector.Vector3) {
+	// Se l'octree non è diviso o non ha corpi, calcola la forza direttamente
+	if !ot.divided || ot.totalMass == 0 {
+		ot.calculateLeafNodeGravity(b, force)
+		return
+	}
+
+	// Calcola la larghezza del nodo e la distanza dal corpo al centro di massa
+	width := ot.bounds.Max.X() - ot.bounds.Min.X()
+	deltaPos := ot.centerOfMass.Sub(b.Position())
+	distanceSquared := deltaPos.LengthSquared()
+
+	// Evita divisione per zero
+	if distanceSquared < 1e-10 {
+		return
+	}
+
+	// Se il rapporto larghezza/distanza è inferiore a theta, approssima con il centro di massa
+	if (width * width) < (theta * theta * distanceSquared) {
+		ot.approximateGravityWithCenterOfMass(b, force)
+		return
+	}
+
+	// Altrimenti, calcola ricorsivamente per ogni figlio
+	for i := 0; i < 8; i++ {
+		if ot.children[i] != nil && ot.children[i].totalMass > 0 {
+			ot.children[i].calculateGravityRecursive(b, theta, force)
+		}
+	}
+}
+
+// calculateLeafNodeGravity calcola la forza gravitazionale per ogni corpo nel nodo foglia
+func (ot *Octree) calculateLeafNodeGravity(b body.Body, force *vector.Vector3) {
+	// Importa la costante gravitazionale
+	G := 6.67430e-11 // Costante gravitazionale universale (m³/kg⋅s²)
+
+	// Massa del corpo
+	bodyMass := b.Mass().Value()
+	bodyPos := b.Position()
+
+	// Calcola la forza per ogni corpo nel nodo
+	for _, obj := range ot.objects {
+		// Evita di calcolare la forza su se stesso
+		if obj.ID() == b.ID() {
+			continue
+		}
+
+		// Calcola il vettore direzione
+		deltaPos := obj.Position().Sub(bodyPos)
+		distanceSquared := deltaPos.LengthSquared()
+
+		// Evita divisione per zero
+		if distanceSquared <= 1e-10 {
+			continue
+		}
+
+		// Calcola la forza gravitazionale
+		distance := math.Sqrt(distanceSquared)
+		direction := deltaPos.Scale(1.0 / distance)
+
+		// F = G * m1 * m2 / r^2
+		forceMagnitude := G * bodyMass * obj.Mass().Value() / distanceSquared
+
+		// Aggiungi la forza al vettore forza totale
+		forceVector := *force
+		*force = forceVector.Add(direction.Scale(forceMagnitude))
+	}
+}
+
+// approximateGravityWithCenterOfMass approssima la forza gravitazionale usando il centro di massa
+func (ot *Octree) approximateGravityWithCenterOfMass(b body.Body, force *vector.Vector3) {
+	// Importa la costante gravitazionale
+	G := 6.67430e-11 // Costante gravitazionale universale (m³/kg⋅s²)
+
+	// Massa del corpo
+	bodyMass := b.Mass().Value()
+	bodyPos := b.Position()
+
+	// Calcola il vettore direzione
+	deltaPos := ot.centerOfMass.Sub(bodyPos)
+	distanceSquared := deltaPos.LengthSquared()
+
+	// Evita divisione per zero
+	if distanceSquared <= 1e-10 {
+		return
+	}
+
+	// Calcola la forza gravitazionale
+	distance := math.Sqrt(distanceSquared)
+	direction := deltaPos.Scale(1.0 / distance)
+
+	// F = G * m1 * m2 / r^2
+	forceMagnitude := G * bodyMass * ot.totalMass / distanceSquared
+
+	// Aggiungi la forza al vettore forza totale
+	forceVector := *force
+	*force = forceVector.Add(direction.Scale(forceMagnitude))
 }

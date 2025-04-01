@@ -2,6 +2,9 @@
 package world
 
 import (
+	"runtime"
+	"sync"
+
 	"github.com/alexanderi96/go-space-engine/core/vector"
 	"github.com/alexanderi96/go-space-engine/physics/body"
 	"github.com/alexanderi96/go-space-engine/physics/collision"
@@ -62,6 +65,47 @@ type World interface {
 	Clear()
 }
 
+// WorkerPool rappresenta un pool di worker per il calcolo parallelo
+type WorkerPool struct {
+	numWorkers int
+	tasks      chan func()
+	wg         sync.WaitGroup
+}
+
+// NewWorkerPool crea un nuovo pool di worker
+func NewWorkerPool(numWorkers int) *WorkerPool {
+	pool := &WorkerPool{
+		numWorkers: numWorkers,
+		tasks:      make(chan func(), numWorkers*10), // Buffer per le task
+	}
+
+	// Avvia i worker
+	for i := 0; i < numWorkers; i++ {
+		go pool.worker()
+	}
+
+	return pool
+}
+
+// worker esegue le task dal canale
+func (wp *WorkerPool) worker() {
+	for task := range wp.tasks {
+		task()
+		wp.wg.Done()
+	}
+}
+
+// Submit invia una task al pool
+func (wp *WorkerPool) Submit(task func()) {
+	wp.wg.Add(1)
+	wp.tasks <- task
+}
+
+// Wait attende che tutte le task siano completate
+func (wp *WorkerPool) Wait() {
+	wp.wg.Wait()
+}
+
 // PhysicalWorld implementa l'interfaccia World
 type PhysicalWorld struct {
 	bodies            map[body.ID]body.Body
@@ -71,12 +115,17 @@ type PhysicalWorld struct {
 	collisionResolver collision.CollisionResolver
 	spatialStructure  space.SpatialStructure
 	bounds            *space.AABB
+	workerPool        *WorkerPool
 }
 
 // NewPhysicalWorld crea un nuovo mondo fisico
 func NewPhysicalWorld(bounds *space.AABB) *PhysicalWorld {
 	// Crea una struttura spaziale (octree) con limiti predefiniti
 	spatialStructure := space.NewOctree(bounds, 10, 8)
+
+	// Crea un pool di worker che si adatta al numero di core disponibili
+	numCPU := runtime.NumCPU()
+	workerPool := NewWorkerPool(numCPU)
 
 	return &PhysicalWorld{
 		bodies:            make(map[body.ID]body.Body),
@@ -86,6 +135,7 @@ func NewPhysicalWorld(bounds *space.AABB) *PhysicalWorld {
 		collisionResolver: collision.NewImpulseResolver(0.5),
 		spatialStructure:  spatialStructure,
 		bounds:            bounds,
+		workerPool:        workerPool,
 	}
 }
 
@@ -226,58 +276,99 @@ func (w *PhysicalWorld) Clear() {
 func (w *PhysicalWorld) applyForces() {
 	bodies := w.GetBodies()
 
-	// Applica le forze globali a tutti i corpi
+	// Verifica se ci sono forze gravitazionali che possono utilizzare l'octree
+	var gravityForce *force.GravitationalForce
 	for _, f := range w.forces {
-		if f.IsGlobal() {
-			for _, b := range bodies {
-				force := f.Apply(b)
-				b.ApplyForce(force)
-			}
+		if gf, ok := f.(*force.GravitationalForce); ok {
+			gravityForce = gf
+			break
 		}
 	}
 
-	// Applica le forze tra coppie di corpi
-	for i := 0; i < len(bodies); i++ {
-		for j := i + 1; j < len(bodies); j++ {
-			for _, f := range w.forces {
-				if !f.IsGlobal() {
-					forceA, forceB := f.ApplyBetween(bodies[i], bodies[j])
-					bodies[i].ApplyForce(forceA)
-					bodies[j].ApplyForce(forceB)
+	// Applica le forze globali a tutti i corpi in parallelo
+	for _, f := range w.forces {
+		if f.IsGlobal() {
+			// Se è una forza gravitazionale e abbiamo un octree, usa l'algoritmo Barnes-Hut
+			if gravityForce != nil && f == gravityForce {
+				octree, ok := w.spatialStructure.(*space.Octree)
+				if ok {
+					// Usa l'octree per calcolare la gravità in parallelo
+					for _, b := range bodies {
+						b := b // Cattura la variabile per la goroutine
+						w.workerPool.Submit(func() {
+							// Calcola la forza gravitazionale usando l'algoritmo Barnes-Hut
+							force := octree.CalculateGravity(b, gravityForce.GetTheta())
+							b.ApplyForce(force)
+						})
+					}
+					w.workerPool.Wait()
+					continue
 				}
 			}
+
+			// Per altre forze globali, applica normalmente in parallelo
+			for _, b := range bodies {
+				b := b // Cattura la variabile per la goroutine
+				f := f // Cattura la variabile per la goroutine
+				w.workerPool.Submit(func() {
+					force := f.Apply(b)
+					b.ApplyForce(force)
+				})
+			}
+			w.workerPool.Wait()
 		}
 	}
+
+	// Applica le forze tra coppie di corpi in parallelo
+	for i := 0; i < len(bodies); i++ {
+		for j := i + 1; j < len(bodies); j++ {
+			i, j := i, j // Cattura le variabili per la goroutine
+			w.workerPool.Submit(func() {
+				for _, f := range w.forces {
+					if !f.IsGlobal() {
+						forceA, forceB := f.ApplyBetween(bodies[i], bodies[j])
+						bodies[i].ApplyForce(forceA)
+						bodies[j].ApplyForce(forceB)
+					}
+				}
+			})
+		}
+	}
+	w.workerPool.Wait()
 }
 
 // handleCollisions rileva e risolve le collisioni
 func (w *PhysicalWorld) handleCollisions() {
 	bodies := w.GetBodies()
 
-	// Rileva e risolvi le collisioni tra coppie di corpi
+	// Rileva e risolvi le collisioni tra coppie di corpi in parallelo
 	for i := 0; i < len(bodies); i++ {
-		// Usa la struttura spaziale per trovare potenziali collisioni
-		radius := bodies[i].Radius().Value()
-		nearbyBodies := w.spatialStructure.QuerySphere(bodies[i].Position(), radius*2)
+		i := i // Cattura la variabile per la goroutine
+		w.workerPool.Submit(func() {
+			// Usa la struttura spaziale per trovare potenziali collisioni
+			radius := bodies[i].Radius().Value()
+			nearbyBodies := w.spatialStructure.QuerySphere(bodies[i].Position(), radius*2)
 
-		for _, b := range nearbyBodies {
-			// Evita di controllare la collisione con se stesso
-			if b.ID() == bodies[i].ID() {
-				continue
+			for _, b := range nearbyBodies {
+				// Evita di controllare la collisione con se stesso
+				if b.ID() == bodies[i].ID() {
+					continue
+				}
+
+				// Rileva la collisione
+				info := w.collider.CheckCollision(bodies[i], b)
+
+				// Risolvi la collisione
+				if info.HasCollided {
+					w.collisionResolver.ResolveCollision(info)
+				}
 			}
 
-			// Rileva la collisione
-			info := w.collider.CheckCollision(bodies[i], b)
-
-			// Risolvi la collisione
-			if info.HasCollided {
-				w.collisionResolver.ResolveCollision(info)
-			}
-		}
-
-		// Controlla anche le collisioni con i limiti del mondo
-		w.handleBoundaryCollisions(bodies[i])
+			// Controlla anche le collisioni con i limiti del mondo
+			w.handleBoundaryCollisions(bodies[i])
+		})
 	}
+	w.workerPool.Wait()
 }
 
 // handleBoundaryCollisions gestisce le collisioni con i limiti del mondo
