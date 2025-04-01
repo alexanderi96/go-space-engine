@@ -193,7 +193,10 @@ func (ra *BaseRenderAdapter) RenderWorld(w world.World) {
 		}
 	}
 
-	// Termina il frame
+	// Nota: quando si usa il metodo Run, il rendering viene gestito internamente
+	// da G3N, quindi non è necessario chiamare EndFrame qui.
+	// Tuttavia, per compatibilità con l'uso tradizionale, lo chiamiamo comunque.
+	// Il metodo EndFrame è stato modificato per non causare conflitti.
 	ra.renderer.EndFrame()
 }
 
