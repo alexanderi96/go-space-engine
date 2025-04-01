@@ -18,7 +18,6 @@ import (
 	"github.com/g3n/engine/material"
 	"github.com/g3n/engine/math32"
 	"github.com/g3n/engine/renderer"
-	"github.com/g3n/engine/util/helper"
 )
 
 // BodyMesh rappresenta un mesh con una luce puntuale associata
@@ -108,7 +107,7 @@ func (ga *G3NAdapter) initialize() {
 
 	// Crea la camera
 	ga.camera = camera.New(1)
-	ga.camera.SetPosition(0, 1, 15)
+	ga.camera.SetPosition(0, 50, 150)
 	ga.camera.LookAt(&math32.Vector3{0, 0, 0}, &math32.Vector3{0, 1, 0})
 	ga.scene.Add(ga.camera)
 
@@ -119,45 +118,68 @@ func (ga *G3NAdapter) initialize() {
 	ga.app.Gls().ClearColor(float32(ga.bgColor.R), float32(ga.bgColor.G), float32(ga.bgColor.B), float32(ga.bgColor.A))
 
 	// Aggiungi luci
-	ambLight := light.NewAmbient(&math32.Color{0.8, 0.8, 0.8}, 1.0)
+	// Luce ambientale più tenue per un effetto spaziale
+	ambLight := light.NewAmbient(&math32.Color{0.3, 0.3, 0.4}, 0.5)
 	ga.scene.Add(ambLight)
 
-	pointLight1 := light.NewPoint(&math32.Color{1, 1, 1}, 2.0)
-	pointLight1.SetPosition(10, 10, 10)
+	// Luci puntuali più intense e distanti per illuminare l'intero sistema solare
+	pointLight1 := light.NewPoint(&math32.Color{1, 1, 1}, 5.0)
+	pointLight1.SetPosition(50, 50, 50)
+	pointLight1.SetLinearDecay(0.1)
+	pointLight1.SetQuadraticDecay(0.01)
 	ga.scene.Add(pointLight1)
 
-	pointLight2 := light.NewPoint(&math32.Color{1, 1, 1}, 2.0)
-	pointLight2.SetPosition(-10, 10, 10)
+	pointLight2 := light.NewPoint(&math32.Color{1, 1, 1}, 5.0)
+	pointLight2.SetPosition(-50, 50, 50)
+	pointLight2.SetLinearDecay(0.1)
+	pointLight2.SetQuadraticDecay(0.01)
 	ga.scene.Add(pointLight2)
 
-	pointLight3 := light.NewPoint(&math32.Color{1, 1, 1}, 2.0)
-	pointLight3.SetPosition(0, 10, -10)
+	pointLight3 := light.NewPoint(&math32.Color{1, 1, 1}, 5.0)
+	pointLight3.SetPosition(0, 50, -50)
+	pointLight3.SetLinearDecay(0.1)
+	pointLight3.SetQuadraticDecay(0.01)
 	ga.scene.Add(pointLight3)
 
 	// Crea gli assi
-	axes := helper.NewAxes(2)
-	ga.scene.Add(axes)
-
-	// Crea una griglia per riferimento
-	grid := helper.NewGrid(20, 1, &math32.Color{0.4, 0.4, 0.4})
-	ga.scene.Add(grid)
+	// Rimuoviamo gli assi e la griglia per una visualizzazione più pulita del sistema solare
 }
 
 // createMeshForBody crea un mesh per un corpo fisico
 func (ga *G3NAdapter) createMeshForBody(b body.Body) {
 	// Crea una sfera per rappresentare il corpo
 	radius := float32(b.Radius().Value())
-	geom := geometry.NewSphere(float64(radius), 32, 16)
+
+	// Aumenta la qualità delle sfere per i corpi più grandi
+	var segments, rings int
+	if radius > 1.5 {
+		segments, rings = 64, 32 // Alta qualità per pianeti grandi
+	} else if radius > 0.8 {
+		segments, rings = 48, 24 // Media qualità per pianeti medi
+	} else {
+		segments, rings = 32, 16 // Qualità standard per corpi piccoli
+	}
+
+	geom := geometry.NewSphere(float64(radius), segments, rings)
 
 	// Crea un materiale in base al materiale del corpo fisico
-	mat := material.NewStandard(&math32.Color{0.8, 0.8, 0.8})
-
-	// Se il materiale del corpo ha un colore, usalo
+	var mat material.IMaterial
 	var bodyColor math32.Color
+
+	// Determina il colore del corpo
 	if b.Material() != nil {
 		// Qui dovresti mappare il materiale fisico a un colore G3N
 		// Per semplicità, usiamo un colore predefinito per ogni tipo di materiale
 		switch b.Material().Name() {
+		case "Sun":
+			// Materiale speciale per il sole con emissione
+			bodyColor = math32.Color{1.0, 0.8, 0.0}
+			// Creiamo un colore di emissione più intenso per simulare la luminosità del sole
+			emissiveColor := math32.Color{1.0, 0.9, 0.5}
+			sunMat := material.NewStandard(&bodyColor)
+			sunMat.SetEmissiveColor(&emissiveColor)
+			sunMat.SetOpacity(1.0)
+			mat = sunMat
 		case "Iron":
 			bodyColor = math32.Color{0.6, 0.6, 0.6}
 		case "Rock":
@@ -166,6 +188,22 @@ func (ga *G3NAdapter) createMeshForBody(b body.Body) {
 			bodyColor = math32.Color{0.8, 0.9, 1.0}
 		case "Copper":
 			bodyColor = math32.Color{0.8, 0.5, 0.2}
+		case "Mercury":
+			bodyColor = math32.Color{0.7, 0.7, 0.7}
+		case "Venus":
+			bodyColor = math32.Color{0.9, 0.7, 0.0}
+		case "Earth":
+			bodyColor = math32.Color{0.0, 0.3, 0.8}
+		case "Mars":
+			bodyColor = math32.Color{0.8, 0.3, 0.0}
+		case "Jupiter":
+			bodyColor = math32.Color{0.8, 0.6, 0.4}
+		case "Saturn":
+			bodyColor = math32.Color{0.9, 0.8, 0.5}
+		case "Uranus":
+			bodyColor = math32.Color{0.5, 0.8, 0.9}
+		case "Neptune":
+			bodyColor = math32.Color{0.0, 0.0, 0.8}
 		default:
 			// Colore casuale basato sull'ID del corpo (che è una stringa)
 			id := string(b.ID())
@@ -181,9 +219,16 @@ func (ga *G3NAdapter) createMeshForBody(b body.Body) {
 			b := float32((hash/(255*255))%255) / 255.0
 			bodyColor = math32.Color{r, g, b}
 		}
-		mat.SetColor(&bodyColor)
+
+		// Se il materiale non è già stato creato (come per il sole)
+		if mat == nil {
+			standardMat := material.NewStandard(&bodyColor)
+			standardMat.SetShininess(30)
+			mat = standardMat
+		}
 	} else {
 		bodyColor = math32.Color{0.8, 0.8, 0.8}
+		mat = material.NewStandard(&bodyColor)
 	}
 
 	// Crea un mesh con la geometria e il materiale
@@ -193,12 +238,31 @@ func (ga *G3NAdapter) createMeshForBody(b body.Body) {
 	pos := b.Position()
 	mesh.SetPosition(float32(pos.X()), float32(pos.Y()), float32(pos.Z()))
 
-	// Crea una luce puntuale per il corpo
-	bodyLight := light.NewPoint(&bodyColor, 0.5)
-	bodyLight.SetPosition(float32(pos.X()), float32(pos.Y()), float32(pos.Z()))
-	bodyLight.SetLinearDecay(1.0)
-	bodyLight.SetQuadraticDecay(1.0)
-	ga.scene.Add(bodyLight)
+	// Crea una luce puntuale per il corpo solo se è abbastanza grande
+	var bodyLight *light.Point
+	if radius > 0.5 || b.Material().Name() == "Sun" {
+		// Intensità della luce proporzionale alla dimensione del corpo
+		lightIntensity := float32(0.5)
+		if b.Material().Name() == "Sun" {
+			lightIntensity = 5.0 // Il sole è molto più luminoso
+		} else if radius > 1.5 {
+			lightIntensity = 1.0 // Pianeti grandi sono più luminosi
+		}
+
+		bodyLight = light.NewPoint(&bodyColor, lightIntensity)
+		bodyLight.SetPosition(float32(pos.X()), float32(pos.Y()), float32(pos.Z()))
+
+		// Decadimento della luce più graduale per il sole
+		if b.Material().Name() == "Sun" {
+			bodyLight.SetLinearDecay(0.05)
+			bodyLight.SetQuadraticDecay(0.005)
+		} else {
+			bodyLight.SetLinearDecay(0.5)
+			bodyLight.SetQuadraticDecay(0.5)
+		}
+
+		ga.scene.Add(bodyLight)
+	}
 
 	// Aggiungi il mesh alla scena
 	ga.scene.Add(mesh)

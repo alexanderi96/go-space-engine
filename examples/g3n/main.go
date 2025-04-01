@@ -27,15 +27,15 @@ func main() {
 	// Crea la configurazione della simulazione
 	cfg := config.NewSimulationBuilder().
 		WithTimeStep(0.01).
-		WithMaxBodies(1000). // Aumentato il numero massimo di corpi
+		WithMaxBodies(1000).
 		WithGravity(true).
 		WithCollisions(true).
-		WithBoundaryCollisions(true).
+		WithBoundaryCollisions(false). // Disabilitiamo le collisioni con i bordi
 		WithWorldBounds(
-			vector.NewVector3(-100, -100, -100),
-			vector.NewVector3(100, 100, 100),
+			vector.NewVector3(-500, -500, -500),
+			vector.NewVector3(500, 500, 500),
 		).
-		WithOctreeConfig(10, 8). // Configurazione ottimale per l'octree
+		WithOctreeConfig(10, 8).
 		Build()
 
 	// Crea il mondo della simulazione
@@ -53,11 +53,10 @@ func main() {
 	adapter := g3n.NewG3NAdapter()
 
 	// Configura l'adapter
-	adapter.SetBackgroundColor(g3n.NewColor(0.0, 0.0, 0.1, 1.0)) // Sfondo blu scuro per lo spazio
+	adapter.SetBackgroundColor(g3n.NewColor(0.0, 0.0, 0.05, 1.0)) // Sfondo blu molto scuro per lo spazio
 
 	// Variabili per il timing
 	lastUpdateTime := time.Now()
-	simulationTime := 0.0
 
 	// Avvia il loop di rendering
 	adapter.Run(func(deltaTime time.Duration) {
@@ -73,7 +72,6 @@ func main() {
 
 		// Esegui un passo della simulazione
 		w.Step(dt)
-		simulationTime += dt
 
 		// Renderizza il mondo
 		adapter.RenderWorld(w)
@@ -89,19 +87,24 @@ func createBodies(w world.World) {
 
 	// Crea un campo di asteroidi
 	log.Println("Creazione del campo di asteroidi")
-	createAsteroidBelt(w, 200, 30.0, 50.0)
+	createAsteroidBelt(w, 200, 60.0, 80.0)
 }
 
 // createSolarSystem crea un sistema solare realistico
 func createSolarSystem(w world.World) {
 	log.Println("Creazione del sole")
 
-	// Crea il sole
+	// Massa fissa del sole - valore elevato per garantire orbite stabili
+	// In una simulazione, i rapporti relativi sono più importanti dei valori assoluti
+	solarMass := 1.0e11 // Valore semplificato
+
+	log.Printf("Massa del sole: %e kg", solarMass)
+
 	sun := body.NewRigidBody(
-		units.NewQuantity(1.989e12, units.Kilogram), // Massa del sole aumentata per permettere orbite stabili
-		units.NewQuantity(2.0, units.Meter),         // Raggio del sole (scalato)
-		vector.NewVector3(0, 0, 0),
-		vector.NewVector3(0, 0, 0),
+		units.NewQuantity(solarMass, units.Kilogram),
+		units.NewQuantity(5.0, units.Meter),                        // Raggio del sole (scalato)
+		vector.NewVector3(0, 0, 0),                                 // Posizione al centro
+		vector.NewVector3(0, 0, 0),                                 // Velocità zero
 		createMaterial("Sun", 0.9, 0.5, [3]float64{1.0, 0.8, 0.0}), // Colore giallo
 	)
 	sun.SetStatic(true) // Il sole è statico (non si muove)
@@ -111,61 +114,73 @@ func createSolarSystem(w world.World) {
 	// Crea i pianeti
 	log.Println("Creazione dei pianeti")
 
-	// Calcola le velocità orbitali corrette per ogni pianeta
-	// Utilizziamo la formula v = sqrt(G*M/r) per la velocità orbitale circolare
-	solarMass := 1.989e12 // Massa del sole in kg
-	G := constants.G      // Costante gravitazionale
+	// Definiamo le distanze dei pianeti
+	// Semplicemente aumentando progressivamente
+	distances := []float64{20, 30, 40, 50, 70, 90, 110, 130}
 
-	// Mercurio
-	mercuryDist := 8.0
-	mercurySpeed := math.Sqrt(G*solarMass/mercuryDist) * 0.1
-	createPlanet(w, "Mercury", 0.33e3, 0.4, mercuryDist, mercurySpeed, vector.NewVector3(0, 1, 0), [3]float64{0.7, 0.7, 0.7})
+	// Nomi dei pianeti
+	names := []string{"Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune"}
 
-	// Venere
-	venusDist := 12.0
-	venusSpeed := math.Sqrt(G*solarMass/venusDist) * 0.1
-	createPlanet(w, "Venus", 4.87e3, 0.6, venusDist, venusSpeed, vector.NewVector3(0, 1, 0), [3]float64{0.9, 0.7, 0.0})
+	// Raggi dei pianeti (scalati)
+	radii := []float64{0.8, 1.2, 1.3, 1.0, 2.5, 2.2, 1.8, 1.8}
 
-	// Terra
-	earthDist := 16.0
-	earthSpeed := math.Sqrt(G*solarMass/earthDist) * 0.1
-	createPlanet(w, "Earth", 5.97e3, 0.6, earthDist, earthSpeed, vector.NewVector3(0, 1, 0), [3]float64{0.0, 0.3, 0.8})
+	// Masse dei pianeti come frazioni della massa solare
+	// I valori esatti non sono importanti, l'importante è che siano molto più piccoli del sole
+	massFractions := []float64{1e-7, 2e-7, 2e-7, 1e-7, 1e-6, 9e-7, 4e-7, 5e-7}
 
-	// Marte
-	marsDist := 20.0
-	marsSpeed := math.Sqrt(G*solarMass/marsDist) * 0.1
-	createPlanet(w, "Mars", 0.642e3, 0.5, marsDist, marsSpeed, vector.NewVector3(0, 1, 0), [3]float64{0.8, 0.3, 0.0})
+	// Colori dei pianeti
+	colors := [][3]float64{
+		{0.7, 0.7, 0.7}, // Mercury
+		{0.9, 0.7, 0.0}, // Venus
+		{0.0, 0.3, 0.8}, // Earth
+		{0.8, 0.3, 0.0}, // Mars
+		{0.8, 0.6, 0.4}, // Jupiter
+		{0.9, 0.8, 0.5}, // Saturn
+		{0.5, 0.8, 0.9}, // Uranus
+		{0.0, 0.0, 0.8}, // Neptune
+	}
 
-	// Giove
-	jupiterDist := 28.0
-	jupiterSpeed := math.Sqrt(G*solarMass/jupiterDist) * 0.1
-	createPlanet(w, "Jupiter", 1898e3, 1.2, jupiterDist, jupiterSpeed, vector.NewVector3(0, 1, 0), [3]float64{0.8, 0.6, 0.4})
+	// Crea ogni pianeta
+	for i := 0; i < len(names); i++ {
+		// Calcola la velocità orbitale usando la formula corretta: v = sqrt(G*M/r)
+		// Dove G è la costante gravitazionale, M è la massa del sole, r è la distanza
+		orbitSpeed := math.Sqrt(constants.G*solarMass/distances[i]) - 1
 
-	// Saturno
-	saturnDist := 36.0
-	saturnSpeed := math.Sqrt(G*solarMass/saturnDist) * 0.1
-	createPlanet(w, "Saturn", 568e3, 1.0, saturnDist, saturnSpeed, vector.NewVector3(0, 1, 0), [3]float64{0.9, 0.8, 0.5})
-
-	// Urano
-	uranusDist := 44.0
-	uranusSpeed := math.Sqrt(G*solarMass/uranusDist) * 0.1
-	createPlanet(w, "Uranus", 86.8e3, 0.8, uranusDist, uranusSpeed, vector.NewVector3(0, 1, 0), [3]float64{0.5, 0.8, 0.9})
-
-	// Nettuno
-	neptuneDist := 52.0
-	neptuneSpeed := math.Sqrt(G*solarMass/neptuneDist) * 0.1
-	createPlanet(w, "Neptune", 102e3, 0.8, neptuneDist, neptuneSpeed, vector.NewVector3(0, 1, 0), [3]float64{0.0, 0.0, 0.8})
+		// Crea il pianeta
+		createPlanet(
+			w,
+			names[i],                   // Nome
+			solarMass*massFractions[i], // Massa
+			radii[i],                   // Raggio
+			distances[i],               // Distanza
+			orbitSpeed,                 // Velocità orbitale calcolata
+			vector.NewVector3(0, 1, 0), // Piano dell'orbita
+			colors[i],                  // Colore
+		)
+	}
 }
 
-// createPlanet crea un pianeta con parametri realistici
+// createPlanet crea un pianeta
 func createPlanet(w world.World, name string, mass, radius, distance, speed float64, orbitPlane vector.Vector3, color [3]float64) body.Body {
 	log.Printf("Creazione del pianeta %s: distanza=%f, raggio=%f, velocità=%f", name, distance, radius, speed)
 
+	// Angolo casuale per la posizione iniziale (per distribuire i pianeti intorno al sole)
+	angle := rand.Float64() * 2 * math.Pi
+
 	// Calcola la posizione iniziale
-	position := vector.NewVector3(distance, 0, 0)
+	position := vector.NewVector3(
+		distance*math.Cos(angle),
+		0,
+		distance*math.Sin(angle),
+	)
 
 	// Calcola la velocità orbitale (perpendicolare alla posizione)
-	velocity := orbitPlane.Cross(position).Normalize().Scale(speed)
+	// Questa è la chiave per orbite stabili: la velocità deve essere perpendicolare al raggio
+	velocity := vector.NewVector3(
+		-speed*math.Sin(angle), // Componente x
+		0,                      // Componente y (piano xy)
+		speed*math.Cos(angle),  // Componente z
+	)
 
 	// Crea il pianeta
 	planet := body.NewRigidBody(
@@ -187,6 +202,9 @@ func createPlanet(w world.World, name string, mass, radius, distance, speed floa
 func createAsteroidBelt(w world.World, count int, minDistance, maxDistance float64) {
 	log.Printf("Creazione di %d asteroidi", count)
 
+	// Massa del sole (deve corrispondere a quella usata per i pianeti)
+	solarMass := 1.0e8
+
 	for i := 0; i < count; i++ {
 		// Genera una posizione casuale nel campo di asteroidi
 		distance := minDistance + rand.Float64()*(maxDistance-minDistance)
@@ -194,18 +212,37 @@ func createAsteroidBelt(w world.World, count int, minDistance, maxDistance float
 
 		x := distance * math.Cos(angle)
 		z := distance * math.Sin(angle)
-		y := (rand.Float64()*2 - 1) * 2 // Distribuzione verticale limitata
+		y := (rand.Float64()*2 - 1) * 5 // Distribuzione verticale più ampia
 
 		position := vector.NewVector3(x, y, z)
 
-		// Calcola la velocità orbitale corretta
-		speed := math.Sqrt(constants.G*1.989e12/distance) * 0.1
-		velocity := vector.NewVector3(-z, 0, x).Normalize().Scale(speed)
+		// Calcola la velocità orbitale corretta: v = sqrt(G*M/r)
+		baseSpeed := math.Sqrt(constants.G * solarMass / distance)
 
-		// Crea l'asteroide
+		// Aggiungi una piccola variazione casuale alla velocità
+		speed := baseSpeed * (0.95 + rand.Float64()*0.1) // 95-105% della velocità base
+
+		// La velocità deve essere perpendicolare al raggio per un'orbita circolare
+		// Per un asteroide nell'asse y ≠ 0, dobbiamo calcolare il vettore perpendicolare correttamente
+		radialDirection := position.Normalize()
+
+		// Vettore "su" nell'asse y
+		up := vector.NewVector3(0, 1, 0)
+
+		// Ottieni il vettore perpendicolare facendo il prodotto vettoriale
+		tangentialDirection := up.Cross(radialDirection).Normalize()
+
+		// Se il risultato è quasi zero (asteroide quasi sull'asse y), usa un'altra direzione
+		if tangentialDirection.Length() < 0.1 {
+			tangentialDirection = vector.NewVector3(1, 0, 0).Cross(radialDirection).Normalize()
+		}
+
+		velocity := tangentialDirection.Scale(speed)
+
+		// Crea l'asteroide con massa ridotta
 		asteroid := body.NewRigidBody(
-			units.NewQuantity(rand.Float64()*100+10, units.Kilogram),
-			units.NewQuantity(rand.Float64()*0.2+0.1, units.Meter),
+			units.NewQuantity(rand.Float64()*10+1, units.Kilogram), // Massa molto più piccola dei pianeti
+			units.NewQuantity(rand.Float64()*0.3+0.1, units.Meter), // Dimensione più piccola
 			position,
 			velocity,
 			physMaterial.Rock,
