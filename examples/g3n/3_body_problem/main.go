@@ -53,7 +53,7 @@ func main() {
 	adapter := g3n.NewG3NAdapter()
 
 	// Configura l'adapter
-	adapter.SetBackgroundColor(g3n.NewColor(0, 0, 0, 1.0)) // Sfondo blu molto scuro per lo spazio
+	adapter.SetBackgroundColor(g3n.NewColor(1.0, 1.0, 1.0, 1.0)) // Sfondo blu molto scuro per lo spazio
 
 	// Variabili per il timing
 	lastUpdateTime := time.Now()

@@ -30,7 +30,7 @@ func main() {
 		WithMaxBodies(1000).
 		WithGravity(true).
 		WithCollisions(true).
-		WithBoundaryCollisions(false). // Disabilitiamo le collisioni con i bordi
+		WithBoundaryCollisions(true). // Disabilitiamo le collisioni con i bordi
 		WithWorldBounds(
 			vector.NewVector3(-500, -500, -500),
 			vector.NewVector3(500, 500, 500),
@@ -53,7 +53,7 @@ func main() {
 	adapter := g3n.NewG3NAdapter()
 
 	// Configura l'adapter
-	adapter.SetBackgroundColor(g3n.NewColor(0.0, 0.0, 0.05, 1.0)) // Sfondo blu molto scuro per lo spazio
+	adapter.SetBackgroundColor(g3n.NewColor(0.0, 0.0, 0.1, 1.0)) // Sfondo blu scuro per lo spazio
 
 	// Variabili per il timing
 	lastUpdateTime := time.Now()
@@ -71,7 +71,7 @@ func main() {
 		}
 
 		// Esegui un passo della simulazione
-		w.Step(dt)
+		w.Step(0.01)
 
 		// Renderizza il mondo
 		adapter.RenderWorld(w)
@@ -84,10 +84,6 @@ func main() {
 func createBodies(w world.World) {
 	log.Println("Creazione del sistema solare")
 	createSolarSystem(w)
-
-	// Crea un campo di asteroidi
-	log.Println("Creazione del campo di asteroidi")
-	createAsteroidBelt(w, 200, 60.0, 80.0)
 }
 
 // createSolarSystem crea un sistema solare realistico
@@ -96,7 +92,7 @@ func createSolarSystem(w world.World) {
 
 	// Massa fissa del sole - valore elevato per garantire orbite stabili
 	// In una simulazione, i rapporti relativi sono più importanti dei valori assoluti
-	solarMass := 1.5e11 // Valore semplificato
+	solarMass := 2e12 // Valore semplificato
 
 	log.Printf("Massa del sole: %e kg", solarMass)
 
@@ -107,7 +103,7 @@ func createSolarSystem(w world.World) {
 		vector.NewVector3(0, 0, 0),                                 // Velocità zero
 		createMaterial("Sun", 0.9, 0.5, [3]float64{1.0, 0.8, 0.0}), // Colore giallo
 	)
-	sun.SetStatic(true) // Il sole è statico (non si muove)
+	sun.SetStatic(false) // Il sole è statico (non si muove)
 	w.AddBody(sun)
 	log.Printf("Sole creato: ID=%v, Posizione=%v", sun.ID(), sun.Position())
 
@@ -144,7 +140,7 @@ func createSolarSystem(w world.World) {
 	for i := 0; i < len(names); i++ {
 		// Calcola la velocità orbitale usando la formula corretta: v = sqrt(G*M/r)
 		// Dove G è la costante gravitazionale, M è la massa del sole, r è la distanza
-		orbitSpeed := math.Sqrt(constants.G*solarMass/distances[i]) - 1
+		orbitSpeed := math.Sqrt(constants.G*solarMass/distances[i]) - 2
 
 		// Crea il pianeta
 		createPlanet(
@@ -158,6 +154,10 @@ func createSolarSystem(w world.World) {
 			colors[i],                  // Colore
 		)
 	}
+
+	// Crea un campo di asteroidi
+	log.Println("Creazione del campo di asteroidi")
+	createAsteroidBelt(w, 200, solarMass, 60.0, 80.0)
 }
 
 // createPlanet crea un pianeta
@@ -199,11 +199,8 @@ func createPlanet(w world.World, name string, mass, radius, distance, speed floa
 }
 
 // createAsteroidBelt crea un campo di asteroidi
-func createAsteroidBelt(w world.World, count int, minDistance, maxDistance float64) {
+func createAsteroidBelt(w world.World, count int, solarMass, minDistance, maxDistance float64) {
 	log.Printf("Creazione di %d asteroidi", count)
-
-	// Massa del sole (deve corrispondere a quella usata per i pianeti)
-	solarMass := 1.0e8
 
 	for i := 0; i < count; i++ {
 		// Genera una posizione casuale nel campo di asteroidi

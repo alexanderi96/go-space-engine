@@ -188,21 +188,37 @@ func (ir *ImpulseResolver) resolvePosition(info CollisionInfo) {
 	// Soglia minima di penetrazione
 	const slop = 0.01
 
-	// Calcola la correzione
-	divisor := 2.0
-	if a.IsStatic() || b.IsStatic() {
-		divisor = 1.0
+	// Calcola le masse inverse
+	massA := a.Mass().Value()
+	massB := b.Mass().Value()
+	var inverseMassA, inverseMassB float64
+	if a.IsStatic() {
+		inverseMassA = 0
+	} else {
+		inverseMassA = 1.0 / massA
 	}
 
-	correction := math.Max(info.Depth-slop, 0.0) / divisor * percent
-	correctionVector := info.Normal.Scale(correction)
+	if b.IsStatic() {
+		inverseMassB = 0
+	} else {
+		inverseMassB = 1.0 / massB
+	}
+
+	// Calcola la somma delle masse inverse
+	totalInverseMass := inverseMassA + inverseMassB
+	if totalInverseMass <= 0 {
+		return // Entrambi i corpi hanno massa infinita
+	}
+
+	// Calcola la correzione
+	correction := math.Max(info.Depth-slop, 0.0) * percent
 
 	// Applica la correzione
 	if !a.IsStatic() {
-		a.SetPosition(a.Position().Sub(correctionVector))
+		a.SetPosition(a.Position().Sub(info.Normal.Scale(correction * inverseMassA / totalInverseMass)))
 	}
 
 	if !b.IsStatic() {
-		b.SetPosition(b.Position().Add(correctionVector))
+		b.SetPosition(b.Position().Add(info.Normal.Scale(correction * inverseMassB / totalInverseMass)))
 	}
 }
