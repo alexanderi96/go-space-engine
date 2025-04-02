@@ -3,11 +3,20 @@ package space
 
 import (
 	"math"
+	"sync"
 
 	"github.com/alexanderi96/go-space-engine/core/constants"
 	"github.com/alexanderi96/go-space-engine/core/vector"
 	"github.com/alexanderi96/go-space-engine/physics/body"
 )
+
+// TaskSubmitter rappresenta un'interfaccia per sottomettere task da eseguire in parallelo
+type TaskSubmitter interface {
+	// Submit sottomette una task da eseguire
+	Submit(task func())
+	// Wait attende che tutte le task siano completate
+	Wait()
+}
 
 // Region rappresenta una regione dello spazio
 type Region interface {
@@ -87,6 +96,8 @@ type SpatialStructure interface {
 	Remove(b body.Body)
 	// Update aggiorna la posizione di un corpo nella struttura
 	Update(b body.Body)
+	// UpdateAll aggiorna la posizione di più corpi nella struttura
+	UpdateAll(bodies []body.Body, taskSubmitter TaskSubmitter)
 	// Query restituisce tutti i corpi che potrebbero interagire con la regione specificata
 	Query(region Region) []body.Body
 	// QuerySphere restituisce tutti i corpi che potrebbero interagire con la sfera specificata
@@ -108,6 +119,9 @@ type Octree struct {
 	// Campi per il calcolo della gravità
 	totalMass    float64        // Massa totale di tutti i corpi in questo nodo e nei suoi figli
 	centerOfMass vector.Vector3 // Centro di massa di tutti i corpi in questo nodo e nei suoi figli
+
+	// Mutex per proteggere l'accesso concorrente
+	mutex sync.RWMutex
 }
 
 // NewOctree crea un nuovo octree
@@ -121,17 +135,26 @@ func NewOctree(bounds *AABB, maxObjects, maxLevels int) *Octree {
 		divided:      false,
 		totalMass:    0,
 		centerOfMass: vector.Zero3(),
+		mutex:        sync.RWMutex{},
 	}
 }
 
 // Insert inserisce un corpo nell'octree
 func (ot *Octree) Insert(b body.Body) {
+	ot.mutex.Lock()
+	defer ot.mutex.Unlock()
+
+	ot.insertUnsafe(b)
+}
+
+// insertUnsafe inserisce un corpo nell'octree senza bloccare il mutex
+func (ot *Octree) insertUnsafe(b body.Body) {
 	// Se l'octree è già diviso, inserisci nei figli appropriati
 	if ot.divided {
 		indices := ot.getIndices(b)
 		for _, index := range indices {
 			if index != -1 {
-				ot.children[index].Insert(b)
+				ot.children[index].insertUnsafe(b)
 			}
 		}
 
@@ -156,7 +179,7 @@ func (ot *Octree) Insert(b body.Body) {
 			indices := ot.getIndices(ot.objects[i])
 			for _, index := range indices {
 				if index != -1 {
-					ot.children[index].Insert(ot.objects[i])
+					ot.children[index].insertUnsafe(ot.objects[i])
 				}
 			}
 		}
@@ -168,12 +191,20 @@ func (ot *Octree) Insert(b body.Body) {
 
 // Remove rimuove un corpo dall'octree
 func (ot *Octree) Remove(b body.Body) {
+	ot.mutex.Lock()
+	defer ot.mutex.Unlock()
+
+	ot.removeUnsafe(b)
+}
+
+// removeUnsafe rimuove un corpo dall'octree senza bloccare il mutex
+func (ot *Octree) removeUnsafe(b body.Body) {
 	// Se l'octree è diviso, rimuovi dai figli appropriati
 	if ot.divided {
 		indices := ot.getIndices(b)
 		for _, index := range indices {
 			if index != -1 {
-				ot.children[index].Remove(b)
+				ot.children[index].removeUnsafe(b)
 			}
 		}
 
@@ -197,15 +228,32 @@ func (ot *Octree) Remove(b body.Body) {
 	}
 }
 
+// UpdateAll aggiorna la posizione di più corpi nell'octree
+func (ot *Octree) UpdateAll(bodies []body.Body, taskSubmitter TaskSubmitter) {
+	for _, b := range bodies {
+		b := b // Cattura la variabile per la goroutine
+		taskSubmitter.Submit(func() {
+			ot.Update(b)
+		})
+	}
+	taskSubmitter.Wait()
+}
+
 // Update aggiorna la posizione di un corpo nell'octree
 func (ot *Octree) Update(b body.Body) {
+	ot.mutex.Lock()
+	defer ot.mutex.Unlock()
+
 	// Rimuovi e reinserisci l'oggetto
-	ot.Remove(b)
-	ot.Insert(b)
+	ot.removeUnsafe(b)
+	ot.insertUnsafe(b)
 }
 
 // Query restituisce tutti i corpi che potrebbero interagire con la regione specificata
 func (ot *Octree) Query(region Region) []body.Body {
+	ot.mutex.RLock()
+	defer ot.mutex.RUnlock()
+
 	result := make([]body.Body, 0)
 
 	// Verifica se la regione interseca questo nodo
@@ -229,6 +277,9 @@ func (ot *Octree) Query(region Region) []body.Body {
 
 // QuerySphere restituisce tutti i corpi che potrebbero interagire con la sfera specificata
 func (ot *Octree) QuerySphere(center vector.Vector3, radius float64) []body.Body {
+	ot.mutex.RLock()
+	defer ot.mutex.RUnlock()
+
 	result := make([]body.Body, 0)
 
 	// Verifica se la sfera interseca questo nodo
@@ -252,6 +303,9 @@ func (ot *Octree) QuerySphere(center vector.Vector3, radius float64) []body.Body
 
 // Clear rimuove tutti i corpi dall'octree
 func (ot *Octree) Clear() {
+	ot.mutex.Lock()
+	defer ot.mutex.Unlock()
+
 	ot.objects = make([]body.Body, 0)
 
 	// Resetta il centro di massa e la massa totale
@@ -444,6 +498,9 @@ func (ot *Octree) updateMassAndCenterOfMass(b body.Body, adding bool) {
 
 // CalculateGravity calcola la forza gravitazionale su un corpo utilizzando l'algoritmo Barnes-Hut
 func (ot *Octree) CalculateGravity(b body.Body, theta float64) vector.Vector3 {
+	ot.mutex.RLock()
+	defer ot.mutex.RUnlock()
+
 	force := vector.Zero3()
 	ot.calculateGravityRecursive(b, theta, &force)
 	return force

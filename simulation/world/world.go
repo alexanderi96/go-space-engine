@@ -71,6 +71,7 @@ type WorkerPool struct {
 	numWorkers int
 	tasks      chan func()
 	wg         sync.WaitGroup
+	mutex      sync.Mutex
 }
 
 // NewWorkerPool crea un nuovo pool di worker
@@ -98,7 +99,9 @@ func (wp *WorkerPool) worker() {
 
 // Submit invia una task al pool
 func (wp *WorkerPool) Submit(task func()) {
+	wp.mutex.Lock()
 	wp.wg.Add(1)
+	wp.mutex.Unlock()
 	wp.tasks <- task
 }
 
@@ -259,8 +262,9 @@ func (w *PhysicalWorld) Step(dt float64) {
 	// Rileva e risolvi le collisioni
 	w.handleCollisions()
 
-	// Integra le equazioni del moto
-	w.integrator.IntegrateAll(w.GetBodies(), dt)
+	// Integra le equazioni del moto in parallelo
+	bodies := w.GetBodies()
+	w.integrator.IntegrateAll(bodies, dt, w.workerPool)
 
 	// Aggiorna la struttura spaziale
 	w.updateSpatialStructure()
@@ -379,77 +383,96 @@ func (w *PhysicalWorld) handleBoundaryCollisions(b body.Body) {
 		return
 	}
 
+	// Ottieni i dati del corpo una sola volta per ridurre le chiamate di metodo
 	position := b.Position()
 	velocity := b.Velocity()
 	radius := b.Radius().Value()
-
-	// Controlla la collisione con i limiti del mondo
 	bounds := w.bounds
+	elasticity := b.Material().Elasticity()
+
+	// Flag per tracciare se la posizione o la velocità sono state modificate
+	positionChanged := false
+	velocityChanged := false
+	newPosition := position
+	newVelocity := velocity
 
 	// Collisione con il limite inferiore X
 	if position.X()-radius < bounds.Min.X() {
 		// Correggi la posizione
-		b.SetPosition(vector.NewVector3(bounds.Min.X()+radius, position.Y(), position.Z()))
+		newPosition = vector.NewVector3(bounds.Min.X()+radius, position.Y(), position.Z())
+		positionChanged = true
 
 		// Inverti la velocità X con smorzamento
-		elasticity := b.Material().Elasticity()
-		b.SetVelocity(vector.NewVector3(-velocity.X()*elasticity, velocity.Y(), velocity.Z()))
+		newVelocity = vector.NewVector3(-velocity.X()*elasticity, velocity.Y(), velocity.Z())
+		velocityChanged = true
 	}
 
 	// Collisione con il limite superiore X
 	if position.X()+radius > bounds.Max.X() {
 		// Correggi la posizione
-		b.SetPosition(vector.NewVector3(bounds.Max.X()-radius, position.Y(), position.Z()))
+		newPosition = vector.NewVector3(bounds.Max.X()-radius, position.Y(), position.Z())
+		positionChanged = true
 
 		// Inverti la velocità X con smorzamento
-		elasticity := b.Material().Elasticity()
-		b.SetVelocity(vector.NewVector3(-velocity.X()*elasticity, velocity.Y(), velocity.Z()))
+		newVelocity = vector.NewVector3(-velocity.X()*elasticity, velocity.Y(), velocity.Z())
+		velocityChanged = true
 	}
 
 	// Collisione con il limite inferiore Y
 	if position.Y()-radius < bounds.Min.Y() {
 		// Correggi la posizione
-		b.SetPosition(vector.NewVector3(position.X(), bounds.Min.Y()+radius, position.Z()))
+		newPosition = vector.NewVector3(newPosition.X(), bounds.Min.Y()+radius, position.Z())
+		positionChanged = true
 
 		// Inverti la velocità Y con smorzamento
-		elasticity := b.Material().Elasticity()
-		b.SetVelocity(vector.NewVector3(velocity.X(), -velocity.Y()*elasticity, velocity.Z()))
+		newVelocity = vector.NewVector3(newVelocity.X(), -velocity.Y()*elasticity, velocity.Z())
+		velocityChanged = true
 	}
 
 	// Collisione con il limite superiore Y
 	if position.Y()+radius > bounds.Max.Y() {
 		// Correggi la posizione
-		b.SetPosition(vector.NewVector3(position.X(), bounds.Max.Y()-radius, position.Z()))
+		newPosition = vector.NewVector3(newPosition.X(), bounds.Max.Y()-radius, position.Z())
+		positionChanged = true
 
 		// Inverti la velocità Y con smorzamento
-		elasticity := b.Material().Elasticity()
-		b.SetVelocity(vector.NewVector3(velocity.X(), -velocity.Y()*elasticity, velocity.Z()))
+		newVelocity = vector.NewVector3(newVelocity.X(), -velocity.Y()*elasticity, velocity.Z())
+		velocityChanged = true
 	}
 
 	// Collisione con il limite inferiore Z
 	if position.Z()-radius < bounds.Min.Z() {
 		// Correggi la posizione
-		b.SetPosition(vector.NewVector3(position.X(), position.Y(), bounds.Min.Z()+radius))
+		newPosition = vector.NewVector3(newPosition.X(), newPosition.Y(), bounds.Min.Z()+radius)
+		positionChanged = true
 
 		// Inverti la velocità Z con smorzamento
-		elasticity := b.Material().Elasticity()
-		b.SetVelocity(vector.NewVector3(velocity.X(), velocity.Y(), -velocity.Z()*elasticity))
+		newVelocity = vector.NewVector3(newVelocity.X(), newVelocity.Y(), -velocity.Z()*elasticity)
+		velocityChanged = true
 	}
 
 	// Collisione con il limite superiore Z
 	if position.Z()+radius > bounds.Max.Z() {
 		// Correggi la posizione
-		b.SetPosition(vector.NewVector3(position.X(), position.Y(), bounds.Max.Z()-radius))
+		newPosition = vector.NewVector3(newPosition.X(), newPosition.Y(), bounds.Max.Z()-radius)
+		positionChanged = true
 
 		// Inverti la velocità Z con smorzamento
-		elasticity := b.Material().Elasticity()
-		b.SetVelocity(vector.NewVector3(velocity.X(), velocity.Y(), -velocity.Z()*elasticity))
+		newVelocity = vector.NewVector3(newVelocity.X(), newVelocity.Y(), -velocity.Z()*elasticity)
+		velocityChanged = true
+	}
+
+	// Aggiorna la posizione e la velocità solo se necessario
+	if positionChanged {
+		b.SetPosition(newPosition)
+	}
+	if velocityChanged {
+		b.SetVelocity(newVelocity)
 	}
 }
 
 // updateSpatialStructure aggiorna la struttura spaziale
 func (w *PhysicalWorld) updateSpatialStructure() {
-	for _, b := range w.bodies {
-		w.spatialStructure.Update(b)
-	}
+	// Aggiorna la struttura spaziale in parallelo
+	w.spatialStructure.UpdateAll(w.GetBodies(), w.workerPool)
 }

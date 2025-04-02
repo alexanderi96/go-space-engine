@@ -2,17 +2,27 @@
 package integrator
 
 import (
+	"sync"
+
 	"github.com/alexanderi96/go-space-engine/core/vector"
 	"github.com/alexanderi96/go-space-engine/physics/body"
 	"github.com/google/uuid"
 )
+
+// TaskSubmitter rappresenta un'interfaccia per sottomettere task da eseguire in parallelo
+type TaskSubmitter interface {
+	// Submit sottomette una task da eseguire
+	Submit(task func())
+	// Wait attende che tutte le task siano completate
+	Wait()
+}
 
 // Integrator rappresenta un integratore numerico per le equazioni del moto
 type Integrator interface {
 	// Integrate integra le equazioni del moto per un corpo
 	Integrate(b body.Body, dt float64)
 	// IntegrateAll integra le equazioni del moto per tutti i corpi
-	IntegrateAll(bodies []body.Body, dt float64)
+	IntegrateAll(bodies []body.Body, dt float64, taskSubmitter TaskSubmitter)
 }
 
 // EulerIntegrator implementa l'integratore di Euler
@@ -43,22 +53,29 @@ func (ei *EulerIntegrator) Integrate(b body.Body, dt float64) {
 }
 
 // IntegrateAll integra le equazioni del moto per tutti i corpi usando il metodo di Euler
-func (ei *EulerIntegrator) IntegrateAll(bodies []body.Body, dt float64) {
+func (ei *EulerIntegrator) IntegrateAll(bodies []body.Body, dt float64, taskSubmitter TaskSubmitter) {
 	for _, b := range bodies {
-		ei.Integrate(b, dt)
+		b := b // Cattura la variabile per la goroutine
+		taskSubmitter.Submit(func() {
+			ei.Integrate(b, dt)
+		})
 	}
+	taskSubmitter.Wait()
 }
 
 // VerletIntegrator implementa l'integratore di Verlet
 type VerletIntegrator struct {
 	// Mappa che memorizza le posizioni precedenti dei corpi
 	previousPositions map[uuid.UUID]vector.Vector3
+	// Mutex per proteggere l'accesso alla mappa
+	mutex sync.RWMutex
 }
 
 // NewVerletIntegrator crea un nuovo integratore di Verlet
 func NewVerletIntegrator() *VerletIntegrator {
 	return &VerletIntegrator{
 		previousPositions: make(map[uuid.UUID]vector.Vector3),
+		mutex:             sync.RWMutex{},
 	}
 }
 
@@ -73,13 +90,17 @@ func (vi *VerletIntegrator) Integrate(b body.Body, dt float64) {
 	currentPosition := b.Position()
 
 	// Verifica se esiste una posizione precedente per questo corpo
+	vi.mutex.RLock()
 	previousPosition, exists := vi.previousPositions[b.ID()]
+	vi.mutex.RUnlock()
 
 	if !exists {
 		// Se non esiste una posizione precedente, usa l'integratore di Euler per il primo passo
 		// x(t-dt) = x(t) - v(t)*dt + 0.5*a(t)*dt^2
 		previousPosition = currentPosition.Sub(b.Velocity().Scale(dt)).Add(b.Acceleration().Scale(0.5 * dt * dt))
+		vi.mutex.Lock()
 		vi.previousPositions[b.ID()] = previousPosition
+		vi.mutex.Unlock()
 	}
 
 	// Calcola la nuova posizione usando l'algoritmo di Verlet
@@ -91,7 +112,9 @@ func (vi *VerletIntegrator) Integrate(b body.Body, dt float64) {
 	newVelocity := newPosition.Sub(previousPosition).Scale(1.0 / (2.0 * dt))
 
 	// Aggiorna la posizione precedente per il prossimo passo
+	vi.mutex.Lock()
 	vi.previousPositions[b.ID()] = currentPosition
+	vi.mutex.Unlock()
 
 	// Aggiorna la posizione e la velocità del corpo
 	b.SetPosition(newPosition)
@@ -101,11 +124,15 @@ func (vi *VerletIntegrator) Integrate(b body.Body, dt float64) {
 	b.SetAcceleration(vector.Zero3())
 }
 
-// IntegrateAll integra le equazioni del moto per tutti i corpi usando il metodo di Verlet
-func (vi *VerletIntegrator) IntegrateAll(bodies []body.Body, dt float64) {
+// IntegrateAll integra le equazioni del moto per tutti i corpi in parallelo usando il metodo di Verlet
+func (vi *VerletIntegrator) IntegrateAll(bodies []body.Body, dt float64, taskSubmitter TaskSubmitter) {
 	for _, b := range bodies {
-		vi.Integrate(b, dt)
+		b := b // Cattura la variabile per la goroutine
+		taskSubmitter.Submit(func() {
+			vi.Integrate(b, dt)
+		})
 	}
+	taskSubmitter.Wait()
 }
 
 // RK4Integrator implementa l'integratore di Runge-Kutta di quarto ordine
@@ -170,9 +197,13 @@ func (rk *RK4Integrator) Integrate(b body.Body, dt float64) {
 	b.SetAcceleration(vector.Zero3())
 }
 
-// IntegrateAll integra le equazioni del moto per tutti i corpi usando il metodo di Runge-Kutta di quarto ordine
-func (rk *RK4Integrator) IntegrateAll(bodies []body.Body, dt float64) {
+// IntegrateAll integra le equazioni del moto per tutti i corpi in parallelo usando il metodo di Runge-Kutta di quarto ordine
+func (rk *RK4Integrator) IntegrateAll(bodies []body.Body, dt float64, taskSubmitter TaskSubmitter) {
 	for _, b := range bodies {
-		rk.Integrate(b, dt)
+		b := b // Cattura la variabile per la goroutine
+		taskSubmitter.Submit(func() {
+			rk.Integrate(b, dt)
+		})
 	}
+	taskSubmitter.Wait()
 }

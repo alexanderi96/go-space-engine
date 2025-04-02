@@ -66,7 +66,7 @@ func main() {
 	// createCentralBody(w)
 
 	// Crea un cubo di corpi (non statici, influenzati dalla gravità)
-	createCuboidFormation(w, 128, 50.0, 100.0, 5.0)
+	createCuboidFormation(w, 512, 50.0, 100.0, 5.0)
 
 	// Altre formazioni disponibili:
 	// createSphereFormation(w, 300, 40.0, 80.0, 5.0)
