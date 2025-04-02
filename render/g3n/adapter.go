@@ -7,6 +7,7 @@ import (
 	"github.com/alexanderi96/go-space-engine/physics/body"
 	"github.com/alexanderi96/go-space-engine/render/adapter"
 	"github.com/alexanderi96/go-space-engine/simulation/world"
+	"github.com/google/uuid"
 
 	"github.com/g3n/engine/app"
 	"github.com/g3n/engine/camera"
@@ -18,6 +19,7 @@ import (
 	"github.com/g3n/engine/material"
 	"github.com/g3n/engine/math32"
 	"github.com/g3n/engine/renderer"
+	"github.com/g3n/engine/window"
 )
 
 // BodyMesh rappresenta un mesh con una luce puntuale associata
@@ -32,7 +34,7 @@ type G3NAdapter struct {
 	scene      *core.Node
 	camera     *camera.Camera
 	cameraCtrl *camera.OrbitControl
-	bodyMeshes map[body.ID]*BodyMesh
+	bodyMeshes map[uuid.UUID]*BodyMesh
 	bgColor    adapter.Color
 	debugMode  bool
 }
@@ -40,7 +42,7 @@ type G3NAdapter struct {
 // NewG3NAdapter crea un nuovo adattatore G3N
 func NewG3NAdapter() *G3NAdapter {
 	return &G3NAdapter{
-		bodyMeshes: make(map[body.ID]*BodyMesh),
+		bodyMeshes: make(map[uuid.UUID]*BodyMesh),
 		bgColor:    adapter.NewColor(1.0, 1.0, 1.0, 1.0), // Sfondo bianco
 		debugMode:  false,
 	}
@@ -116,6 +118,14 @@ func (ga *G3NAdapter) initialize() {
 
 	// Imposta il colore di sfondo
 	ga.app.Gls().ClearColor(float32(ga.bgColor.R), float32(ga.bgColor.G), float32(ga.bgColor.B), float32(ga.bgColor.A))
+
+	// Aggiungi un gestore per il ridimensionamento della finestra
+	ga.app.Subscribe(window.OnWindowSize, ga.onWindowResize)
+
+	// Imposta l'aspect ratio iniziale della camera
+	width, height := ga.app.GetSize()
+	aspect := float32(width) / float32(height)
+	ga.camera.SetAspect(aspect)
 
 	// Aggiungi luci
 	// Luce ambientale più tenue per un effetto spaziale
@@ -206,7 +216,7 @@ func (ga *G3NAdapter) createMeshForBody(b body.Body) {
 			bodyColor = math32.Color{0.0, 0.0, 0.8}
 		default:
 			// Colore casuale basato sull'ID del corpo (che è una stringa)
-			id := string(b.ID())
+			id := b.ID()
 			hash := 0
 			for i := 0; i < len(id); i++ {
 				hash = 31*hash + int(id[i])
@@ -345,4 +355,18 @@ func (ga *G3NAdapter) SetBackgroundColor(color adapter.Color) {
 // NewColor crea un nuovo colore
 func NewColor(r, g, b, a float64) adapter.Color {
 	return adapter.NewColor(r, g, b, a)
+}
+
+// onWindowResize gestisce il ridimensionamento della finestra
+func (ga *G3NAdapter) onWindowResize(evname string, ev interface{}) {
+	// Ottieni le nuove dimensioni della finestra
+	width, height := ga.app.GetSize()
+
+	// Aggiorna l'aspect ratio della camera
+	aspect := float32(width) / float32(height)
+	ga.camera.SetAspect(aspect)
+
+	// Imposta esplicitamente il viewport utilizzando l'API OpenGL
+	gl := ga.app.Gls()
+	gl.Viewport(0, 0, int32(width), int32(height))
 }

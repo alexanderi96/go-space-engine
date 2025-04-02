@@ -54,7 +54,7 @@ func NewDefaultConfig() *Config {
 
 		Restitution: 0.5,
 
-		IntegratorType: "verlet",
+		IntegratorType: "rk4",
 	}
 }
 

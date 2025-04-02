@@ -96,7 +96,7 @@ func createSolarSystem(w world.World) {
 
 	// Massa fissa del sole - valore elevato per garantire orbite stabili
 	// In una simulazione, i rapporti relativi sono più importanti dei valori assoluti
-	solarMass := 1.0e11 // Valore semplificato
+	solarMass := 1.5e11 // Valore semplificato
 
 	log.Printf("Massa del sole: %e kg", solarMass)
 

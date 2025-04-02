@@ -2,31 +2,26 @@
 package body
 
 import (
-	"fmt"
-	"math/rand"
-	"time"
-
 	"github.com/alexanderi96/go-space-engine/core/units"
 	"github.com/alexanderi96/go-space-engine/core/vector"
+	"github.com/google/uuid"
 )
 
 // ID rappresenta un identificatore univoco per un corpo
-type ID string
+// type ID uuid.UUID
 
 // NewID genera un nuovo ID univoco
-func NewID() ID {
-	// Inizializza il generatore di numeri casuali con il timestamp corrente
-	rand.Seed(time.Now().UnixNano())
+// func NewID() ID {
 
-	// Genera un ID casuale di 16 caratteri
-	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	result := make([]byte, 16)
-	for i := range result {
-		result[i] = chars[rand.Intn(len(chars))]
-	}
+// 	// Genera un ID casuale di 16 caratteri
+// 	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+// 	result := make([]byte, 16)
+// 	for i := range result {
+// 		result[i] = chars[rand.Intn(len(chars))]
+// 	}
 
-	return ID(fmt.Sprintf("%s-%d", string(result), time.Now().UnixNano()))
-}
+// 	return ID(fmt.Sprintf("%s-%d", string(result), time.Now().UnixNano()))
+// }
 
 // Material rappresenta le proprietà fisiche di un materiale
 type Material interface {
@@ -52,7 +47,7 @@ type Material interface {
 // Body rappresenta un corpo fisico nel motore
 type Body interface {
 	// ID restituisce l'identificatore univoco del corpo
-	ID() ID
+	ID() uuid.UUID
 
 	// Position restituisce la posizione del corpo
 	Position() vector.Vector3
@@ -106,7 +101,7 @@ type Body interface {
 
 // RigidBody implementa un corpo rigido
 type RigidBody struct {
-	id           ID
+	id           uuid.UUID
 	position     vector.Vector3
 	velocity     vector.Vector3
 	acceleration vector.Vector3
@@ -126,7 +121,7 @@ func NewRigidBody(
 	mat Material,
 ) *RigidBody {
 	return &RigidBody{
-		id:           NewID(),
+		id:           uuid.New(),
 		position:     position,
 		velocity:     velocity,
 		acceleration: vector.Zero3(),
@@ -139,7 +134,7 @@ func NewRigidBody(
 }
 
 // ID restituisce l'identificatore univoco del corpo
-func (rb *RigidBody) ID() ID {
+func (rb *RigidBody) ID() uuid.UUID {
 	return rb.id
 }
 

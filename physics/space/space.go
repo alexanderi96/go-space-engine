@@ -4,6 +4,7 @@ package space
 import (
 	"math"
 
+	"github.com/alexanderi96/go-space-engine/core/constants"
 	"github.com/alexanderi96/go-space-engine/core/vector"
 	"github.com/alexanderi96/go-space-engine/physics/body"
 )
@@ -482,8 +483,6 @@ func (ot *Octree) calculateGravityRecursive(b body.Body, theta float64, force *v
 
 // calculateLeafNodeGravity calcola la forza gravitazionale per ogni corpo nel nodo foglia
 func (ot *Octree) calculateLeafNodeGravity(b body.Body, force *vector.Vector3) {
-	// Importa la costante gravitazionale
-	G := 6.67430e-11 // Costante gravitazionale universale (m³/kg⋅s²)
 
 	// Massa del corpo
 	bodyMass := b.Mass().Value()
@@ -510,7 +509,7 @@ func (ot *Octree) calculateLeafNodeGravity(b body.Body, force *vector.Vector3) {
 		direction := deltaPos.Scale(1.0 / distance)
 
 		// F = G * m1 * m2 / r^2
-		forceMagnitude := G * bodyMass * obj.Mass().Value() / distanceSquared
+		forceMagnitude := constants.G * bodyMass * obj.Mass().Value() / distanceSquared
 
 		// Aggiungi la forza al vettore forza totale
 		forceVector := *force
@@ -520,8 +519,6 @@ func (ot *Octree) calculateLeafNodeGravity(b body.Body, force *vector.Vector3) {
 
 // approximateGravityWithCenterOfMass approssima la forza gravitazionale usando il centro di massa
 func (ot *Octree) approximateGravityWithCenterOfMass(b body.Body, force *vector.Vector3) {
-	// Importa la costante gravitazionale
-	G := 6.67430e-11 // Costante gravitazionale universale (m³/kg⋅s²)
 
 	// Massa del corpo
 	bodyMass := b.Mass().Value()
@@ -541,7 +538,7 @@ func (ot *Octree) approximateGravityWithCenterOfMass(b body.Body, force *vector.
 	direction := deltaPos.Scale(1.0 / distance)
 
 	// F = G * m1 * m2 / r^2
-	forceMagnitude := G * bodyMass * ot.totalMass / distanceSquared
+	forceMagnitude := constants.G * bodyMass * ot.totalMass / distanceSquared
 
 	// Aggiungi la forza al vettore forza totale
 	forceVector := *force

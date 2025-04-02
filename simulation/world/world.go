@@ -11,6 +11,7 @@ import (
 	"github.com/alexanderi96/go-space-engine/physics/force"
 	"github.com/alexanderi96/go-space-engine/physics/integrator"
 	"github.com/alexanderi96/go-space-engine/physics/space"
+	"github.com/google/uuid"
 )
 
 // World rappresenta il mondo della simulazione
@@ -18,9 +19,9 @@ type World interface {
 	// AddBody aggiunge un corpo al mondo
 	AddBody(b body.Body)
 	// RemoveBody rimuove un corpo dal mondo
-	RemoveBody(id body.ID)
+	RemoveBody(id uuid.UUID)
 	// GetBody restituisce un corpo dal mondo
-	GetBody(id body.ID) body.Body
+	GetBody(id uuid.UUID) body.Body
 	// GetBodies restituisce tutti i corpi nel mondo
 	GetBodies() []body.Body
 	// GetBodyCount restituisce il numero di corpi nel mondo
@@ -108,7 +109,7 @@ func (wp *WorkerPool) Wait() {
 
 // PhysicalWorld implementa l'interfaccia World
 type PhysicalWorld struct {
-	bodies            map[body.ID]body.Body
+	bodies            map[uuid.UUID]body.Body
 	forces            []force.Force
 	integrator        integrator.Integrator
 	collider          collision.Collider
@@ -128,7 +129,7 @@ func NewPhysicalWorld(bounds *space.AABB) *PhysicalWorld {
 	workerPool := NewWorkerPool(numCPU)
 
 	return &PhysicalWorld{
-		bodies:            make(map[body.ID]body.Body),
+		bodies:            make(map[uuid.UUID]body.Body),
 		forces:            make([]force.Force, 0),
 		integrator:        integrator.NewVerletIntegrator(),
 		collider:          collision.NewSphereCollider(),
@@ -146,7 +147,7 @@ func (w *PhysicalWorld) AddBody(b body.Body) {
 }
 
 // RemoveBody rimuove un corpo dal mondo
-func (w *PhysicalWorld) RemoveBody(id body.ID) {
+func (w *PhysicalWorld) RemoveBody(id uuid.UUID) {
 	if b, exists := w.bodies[id]; exists {
 		w.spatialStructure.Remove(b)
 		delete(w.bodies, id)
@@ -154,7 +155,7 @@ func (w *PhysicalWorld) RemoveBody(id body.ID) {
 }
 
 // GetBody restituisce un corpo dal mondo
-func (w *PhysicalWorld) GetBody(id body.ID) body.Body {
+func (w *PhysicalWorld) GetBody(id uuid.UUID) body.Body {
 	return w.bodies[id]
 }
 
@@ -267,7 +268,7 @@ func (w *PhysicalWorld) Step(dt float64) {
 
 // Clear rimuove tutti i corpi e le forze dal mondo
 func (w *PhysicalWorld) Clear() {
-	w.bodies = make(map[body.ID]body.Body)
+	w.bodies = make(map[uuid.UUID]body.Body)
 	w.forces = make([]force.Force, 0)
 	w.spatialStructure.Clear()
 }

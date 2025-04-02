@@ -4,6 +4,7 @@ package integrator
 import (
 	"github.com/alexanderi96/go-space-engine/core/vector"
 	"github.com/alexanderi96/go-space-engine/physics/body"
+	"github.com/google/uuid"
 )
 
 // Integrator rappresenta un integratore numerico per le equazioni del moto
@@ -51,13 +52,13 @@ func (ei *EulerIntegrator) IntegrateAll(bodies []body.Body, dt float64) {
 // VerletIntegrator implementa l'integratore di Verlet
 type VerletIntegrator struct {
 	// Mappa che memorizza le posizioni precedenti dei corpi
-	previousPositions map[body.ID]vector.Vector3
+	previousPositions map[uuid.UUID]vector.Vector3
 }
 
 // NewVerletIntegrator crea un nuovo integratore di Verlet
 func NewVerletIntegrator() *VerletIntegrator {
 	return &VerletIntegrator{
-		previousPositions: make(map[body.ID]vector.Vector3),
+		previousPositions: make(map[uuid.UUID]vector.Vector3),
 	}
 }
 
