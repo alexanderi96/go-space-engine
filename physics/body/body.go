@@ -1,4 +1,4 @@
-// Package body fornisce interfacce e implementazioni per i corpi fisici
+// Package body provides interfaces and implementations for physical bodies
 package body
 
 import (
@@ -7,13 +7,13 @@ import (
 	"github.com/google/uuid"
 )
 
-// ID rappresenta un identificatore univoco per un corpo
+// ID represents a unique identifier for a body
 // type ID uuid.UUID
 
-// NewID genera un nuovo ID univoco
+// NewID generates a new unique ID
 // func NewID() ID {
 
-// 	// Genera un ID casuale di 16 caratteri
+// 	// Generates a random ID of 16 characters
 // 	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 // 	result := make([]byte, 16)
 // 	for i := range result {
@@ -23,83 +23,83 @@ import (
 // 	return ID(fmt.Sprintf("%s-%d", string(result), time.Now().UnixNano()))
 // }
 
-// Material rappresenta le proprietà fisiche di un materiale
+// Material represents the physical properties of a material
 type Material interface {
-	// Name restituisce il nome del materiale
+	// Name returns the name of the material
 	Name() string
 
-	// Density restituisce la densità del materiale
+	// Density returns the density of the material
 	Density() units.Quantity
 
-	// SpecificHeat restituisce la capacità termica specifica del materiale
+	// SpecificHeat returns the specific heat capacity of the material
 	SpecificHeat() units.Quantity
 
-	// ThermalConductivity restituisce la conducibilità termica del materiale
+	// ThermalConductivity returns the thermal conductivity of the material
 	ThermalConductivity() units.Quantity
 
-	// Emissivity restituisce l'emissività del materiale
+	// Emissivity returns the emissivity of the material
 	Emissivity() float64
 
-	// Elasticity restituisce l'elasticità del materiale
+	// Elasticity returns the elasticity of the material
 	Elasticity() float64
 }
 
-// Body rappresenta un corpo fisico nel motore
+// Body represents a physical body in the engine
 type Body interface {
-	// ID restituisce l'identificatore univoco del corpo
+	// ID returns the unique identifier of the body
 	ID() uuid.UUID
 
-	// Position restituisce la posizione del corpo
+	// Position returns the position of the body
 	Position() vector.Vector3
-	// SetPosition imposta la posizione del corpo
+	// SetPosition sets the position of the body
 	SetPosition(pos vector.Vector3)
 
-	// Velocity restituisce la velocità del corpo
+	// Velocity returns the velocity of the body
 	Velocity() vector.Vector3
-	// SetVelocity imposta la velocità del corpo
+	// SetVelocity sets the velocity of the body
 	SetVelocity(vel vector.Vector3)
 
-	// Acceleration restituisce l'accelerazione del corpo
+	// Acceleration returns the acceleration of the body
 	Acceleration() vector.Vector3
-	// SetAcceleration imposta l'accelerazione del corpo
+	// SetAcceleration sets the acceleration of the body
 	SetAcceleration(acc vector.Vector3)
 
-	// Mass restituisce la massa del corpo
+	// Mass returns the mass of the body
 	Mass() units.Quantity
-	// SetMass imposta la massa del corpo
+	// SetMass sets the mass of the body
 	SetMass(mass units.Quantity)
 
-	// Radius restituisce il raggio del corpo
+	// Radius returns the radius of the body
 	Radius() units.Quantity
-	// SetRadius imposta il raggio del corpo
+	// SetRadius sets the radius of the body
 	SetRadius(radius units.Quantity)
 
-	// Material restituisce il materiale del corpo
+	// Material returns the material of the body
 	Material() Material
-	// SetMaterial imposta il materiale del corpo
+	// SetMaterial sets the material of the body
 	SetMaterial(mat Material)
 
-	// ApplyForce applica una forza al corpo
+	// ApplyForce applies a force to the body
 	ApplyForce(force vector.Vector3)
 
-	// Update aggiorna lo stato del corpo
+	// Update updates the state of the body
 	Update(dt float64)
 
-	// Temperature restituisce la temperatura del corpo
+	// Temperature returns the temperature of the body
 	Temperature() units.Quantity
-	// SetTemperature imposta la temperatura del corpo
+	// SetTemperature sets the temperature of the body
 	SetTemperature(temp units.Quantity)
 
-	// AddHeat aggiunge calore al corpo
+	// AddHeat adds heat to the body
 	AddHeat(heat units.Quantity)
 
-	// IsStatic restituisce true se il corpo è statico (non si muove)
+	// IsStatic returns true if the body is static (does not move)
 	IsStatic() bool
-	// SetStatic imposta se il corpo è statico
+	// SetStatic sets whether the body is static
 	SetStatic(static bool)
 }
 
-// RigidBody implementa un corpo rigido
+// RigidBody implements a rigid body
 type RigidBody struct {
 	id           uuid.UUID
 	position     vector.Vector3
@@ -112,7 +112,7 @@ type RigidBody struct {
 	isStatic     bool
 }
 
-// NewRigidBody crea un nuovo corpo rigido
+// NewRigidBody creates a new rigid body
 func NewRigidBody(
 	mass units.Quantity,
 	radius units.Quantity,
@@ -128,62 +128,62 @@ func NewRigidBody(
 		mass:         mass,
 		radius:       radius,
 		material:     mat,
-		temperature:  units.NewQuantity(293.15, units.Kelvin), // Temperatura ambiente (20°C)
+		temperature:  units.NewQuantity(293.15, units.Kelvin), // Room temperature (20°C)
 		isStatic:     false,
 	}
 }
 
-// ID restituisce l'identificatore univoco del corpo
+// ID returns the unique identifier of the body
 func (rb *RigidBody) ID() uuid.UUID {
 	return rb.id
 }
 
-// Position restituisce la posizione del corpo
+// Position returns the position of the body
 func (rb *RigidBody) Position() vector.Vector3 {
 	return rb.position
 }
 
-// SetPosition imposta la posizione del corpo
+// SetPosition sets the position of the body
 func (rb *RigidBody) SetPosition(pos vector.Vector3) {
 	rb.position = pos
 }
 
-// Velocity restituisce la velocità del corpo
+// Velocity returns the velocity of the body
 func (rb *RigidBody) Velocity() vector.Vector3 {
 	return rb.velocity
 }
 
-// SetVelocity imposta la velocità del corpo
+// SetVelocity sets the velocity of the body
 func (rb *RigidBody) SetVelocity(vel vector.Vector3) {
 	rb.velocity = vel
 
-	// Se il corpo è statico, la velocità deve essere zero
+	// If the body is static, velocity must be zero
 	if rb.isStatic {
 		rb.velocity = vector.Zero3()
 	}
 }
 
-// Acceleration restituisce l'accelerazione del corpo
+// Acceleration returns the acceleration of the body
 func (rb *RigidBody) Acceleration() vector.Vector3 {
 	return rb.acceleration
 }
 
-// SetAcceleration imposta l'accelerazione del corpo
+// SetAcceleration sets the acceleration of the body
 func (rb *RigidBody) SetAcceleration(acc vector.Vector3) {
 	rb.acceleration = acc
 
-	// Se il corpo è statico, l'accelerazione deve essere zero
+	// If the body is static, acceleration must be zero
 	if rb.isStatic {
 		rb.acceleration = vector.Zero3()
 	}
 }
 
-// Mass restituisce la massa del corpo
+// Mass returns the mass of the body
 func (rb *RigidBody) Mass() units.Quantity {
 	return rb.mass
 }
 
-// SetMass imposta la massa del corpo
+// SetMass sets the mass of the body
 func (rb *RigidBody) SetMass(mass units.Quantity) {
 	if mass.Unit().Type() != units.Mass {
 		panic("Mass must be a mass quantity")
@@ -191,12 +191,12 @@ func (rb *RigidBody) SetMass(mass units.Quantity) {
 	rb.mass = mass
 }
 
-// Radius restituisce il raggio del corpo
+// Radius returns the radius of the body
 func (rb *RigidBody) Radius() units.Quantity {
 	return rb.radius
 }
 
-// SetRadius imposta il raggio del corpo
+// SetRadius sets the radius of the body
 func (rb *RigidBody) SetRadius(radius units.Quantity) {
 	if radius.Unit().Type() != units.Length {
 		panic("Radius must be a length quantity")
@@ -204,17 +204,17 @@ func (rb *RigidBody) SetRadius(radius units.Quantity) {
 	rb.radius = radius
 }
 
-// Material restituisce il materiale del corpo
+// Material returns the material of the body
 func (rb *RigidBody) Material() Material {
 	return rb.material
 }
 
-// SetMaterial imposta il materiale del corpo
+// SetMaterial sets the material of the body
 func (rb *RigidBody) SetMaterial(mat Material) {
 	rb.material = mat
 }
 
-// ApplyForce applica una forza al corpo
+// ApplyForce applies a force to the body
 func (rb *RigidBody) ApplyForce(force vector.Vector3) {
 	if rb.isStatic {
 		return
@@ -226,47 +226,47 @@ func (rb *RigidBody) ApplyForce(force vector.Vector3) {
 		return
 	}
 
-	// Calcola l'accelerazione (F/m) e la aggiunge all'accelerazione corrente
+	// Calculate the acceleration (F/m) and add it to the current acceleration
 	acceleration := force.Scale(1.0 / massValue)
 	rb.acceleration = rb.acceleration.Add(acceleration)
 }
 
-// Update aggiorna lo stato del corpo
+// Update updates the state of the body
 func (rb *RigidBody) Update(dt float64) {
-	// Se il corpo è statico, assicurati che velocità e accelerazione siano zero
+	// If the body is static, ensure velocity and acceleration are zero
 	if rb.isStatic {
 		rb.velocity = vector.Zero3()
 		rb.acceleration = vector.Zero3()
 		return
 	}
 
-	// Integrazione di Verlet
+	// Verlet integration
 	// x(t+dt) = x(t) + v(t)*dt + 0.5*a(t)*dt^2
 	// v(t+dt) = v(t) + 0.5*(a(t) + a(t+dt))*dt
 
-	// Salva l'accelerazione corrente
+	// Save the current acceleration
 	oldAcceleration := rb.acceleration
 
-	// Aggiorna la posizione
+	// Update the position
 	halfDtSquared := 0.5 * dt * dt
 	dtVelocity := rb.velocity.Scale(dt)
 	dtAcceleration := rb.acceleration.Scale(halfDtSquared)
 	rb.position = rb.position.Add(dtVelocity).Add(dtAcceleration)
 
-	// Resetta l'accelerazione (verrà ricalcolata nel prossimo ciclo)
+	// Reset the acceleration (will be recalculated in the next cycle)
 	rb.acceleration = vector.Zero3()
 
-	// Aggiorna la velocità (usando la media delle accelerazioni)
+	// Update the velocity (using the average of accelerations)
 	avgAcceleration := oldAcceleration.Add(rb.acceleration).Scale(0.5)
 	rb.velocity = rb.velocity.Add(avgAcceleration.Scale(dt))
 }
 
-// Temperature restituisce la temperatura del corpo
+// Temperature returns the temperature of the body
 func (rb *RigidBody) Temperature() units.Quantity {
 	return rb.temperature
 }
 
-// SetTemperature imposta la temperatura del corpo
+// SetTemperature sets the temperature of the body
 func (rb *RigidBody) SetTemperature(temp units.Quantity) {
 	if temp.Unit().Type() != units.Temperature {
 		panic("Temperature must be a temperature quantity")
@@ -274,7 +274,7 @@ func (rb *RigidBody) SetTemperature(temp units.Quantity) {
 	rb.temperature = temp
 }
 
-// AddHeat aggiunge calore al corpo
+// AddHeat adds heat to the body
 func (rb *RigidBody) AddHeat(heat units.Quantity) {
 	if heat.Unit().Type() != units.Energy {
 		panic("Heat must be an energy quantity")
@@ -286,26 +286,26 @@ func (rb *RigidBody) AddHeat(heat units.Quantity) {
 		return
 	}
 
-	// Ottieni la capacità termica specifica dal materiale
+	// Get the specific heat capacity from the material
 	specificHeat := rb.material.SpecificHeat()
 	specificHeatValue := specificHeat.Value()
 
-	// Calcola la variazione di temperatura
+	// Calculate the temperature change
 	heatValue := heat.Value()
 	deltaTemp := heatValue / (massValue * specificHeatValue)
 
-	// Aggiorna la temperatura
+	// Update the temperature
 	currentTemp := rb.temperature.Value()
 	newTemp := currentTemp + deltaTemp
 	rb.temperature = units.NewQuantity(newTemp, units.Kelvin)
 }
 
-// IsStatic restituisce true se il corpo è statico (non si muove)
+// IsStatic returns true if the body is static (does not move)
 func (rb *RigidBody) IsStatic() bool {
 	return rb.isStatic
 }
 
-// SetStatic imposta se il corpo è statico
+// SetStatic sets whether the body is static
 func (rb *RigidBody) SetStatic(static bool) {
 	rb.isStatic = static
 	if static {

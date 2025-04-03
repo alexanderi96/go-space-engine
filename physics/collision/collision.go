@@ -1,4 +1,4 @@
-// Package collision fornisce interfacce e implementazioni per il rilevamento e la risoluzione delle collisioni
+// Package collision provides interfaces and implementations for collision detection and resolution
 package collision
 
 import (
@@ -8,53 +8,53 @@ import (
 	"github.com/alexanderi96/go-space-engine/physics/body"
 )
 
-// CollisionInfo contiene informazioni sulla collisione
+// CollisionInfo contains information about a collision
 type CollisionInfo struct {
-	BodyA       body.Body      // Primo corpo coinvolto nella collisione
-	BodyB       body.Body      // Secondo corpo coinvolto nella collisione
-	Point       vector.Vector3 // Punto di contatto
-	Normal      vector.Vector3 // Normale di collisione (da A a B)
-	Depth       float64        // Profondità di penetrazione
-	HasCollided bool           // Indica se c'è stata una collisione
+	BodyA       body.Body      // First body involved in the collision
+	BodyB       body.Body      // Second body involved in the collision
+	Point       vector.Vector3 // Contact point
+	Normal      vector.Vector3 // Collision normal (from A to B)
+	Depth       float64        // Penetration depth
+	HasCollided bool           // Indicates if a collision occurred
 }
 
-// Collider rileva le collisioni tra corpi
+// Collider detects collisions between bodies
 type Collider interface {
-	// CheckCollision verifica se due corpi collidono
+	// CheckCollision checks if two bodies collide
 	CheckCollision(a, b body.Body) CollisionInfo
 }
 
-// CollisionResolver risolve le collisioni
+// CollisionResolver resolves collisions
 type CollisionResolver interface {
-	// ResolveCollision risolve una collisione
+	// ResolveCollision resolves a collision
 	ResolveCollision(info CollisionInfo)
 }
 
-// SphereCollider implementa un rilevatore di collisioni per corpi sferici
+// SphereCollider implements a collision detector for spherical bodies
 type SphereCollider struct{}
 
-// NewSphereCollider crea un nuovo rilevatore di collisioni per corpi sferici
+// NewSphereCollider creates a new collision detector for spherical bodies
 func NewSphereCollider() *SphereCollider {
 	return &SphereCollider{}
 }
 
-// CheckCollision verifica se due corpi sferici collidono
+// CheckCollision checks if two spherical bodies collide
 func (sc *SphereCollider) CheckCollision(a, b body.Body) CollisionInfo {
-	// Calcola il vettore direzione da a a b
+	// Calculate the direction vector from a to b
 	direction := b.Position().Sub(a.Position())
 
-	// Calcola la distanza al quadrato
+	// Calculate the squared distance
 	distanceSquared := direction.LengthSquared()
 
-	// Calcola la somma dei raggi
+	// Calculate the sum of radii
 	radiusA := a.Radius().Value()
 	radiusB := b.Radius().Value()
 	sumRadii := radiusA + radiusB
 
-	// Verifica se c'è una collisione
+	// Check if there is a collision
 	hasCollided := distanceSquared < sumRadii*sumRadii
 
-	// Se non c'è collisione, restituisci un'informazione di collisione vuota
+	// If there is no collision, return an empty collision info
 	if !hasCollided {
 		return CollisionInfo{
 			BodyA:       a,
@@ -63,22 +63,22 @@ func (sc *SphereCollider) CheckCollision(a, b body.Body) CollisionInfo {
 		}
 	}
 
-	// Calcola la distanza
+	// Calculate the distance
 	distance := math.Sqrt(distanceSquared)
 
-	// Calcola la normale di collisione
+	// Calculate the collision normal
 	var normal vector.Vector3
 	if distance > 1e-10 {
 		normal = direction.Scale(1.0 / distance)
 	} else {
-		// Se i corpi sono sovrapposti completamente, usa una normale predefinita
+		// If the bodies completely overlap, use a default normal
 		normal = vector.NewVector3(1, 0, 0)
 	}
 
-	// Calcola la profondità di penetrazione
+	// Calculate the penetration depth
 	depth := sumRadii - distance
 
-	// Calcola il punto di contatto
+	// Calculate the contact point
 	point := a.Position().Add(normal.Scale(radiusA))
 
 	return CollisionInfo{
@@ -91,21 +91,21 @@ func (sc *SphereCollider) CheckCollision(a, b body.Body) CollisionInfo {
 	}
 }
 
-// ImpulseResolver implementa un risolutore di collisioni basato sugli impulsi
+// ImpulseResolver implements an impulse-based collision resolver
 type ImpulseResolver struct {
-	restitution float64 // Coefficiente di restituzione (elasticità)
+	restitution float64 // Coefficient of restitution (elasticity)
 }
 
-// NewImpulseResolver crea un nuovo risolutore di collisioni basato sugli impulsi
+// NewImpulseResolver creates a new impulse-based collision resolver
 func NewImpulseResolver(restitution float64) *ImpulseResolver {
 	return &ImpulseResolver{
 		restitution: restitution,
 	}
 }
 
-// ResolveCollision risolve una collisione usando il metodo degli impulsi
+// ResolveCollision resolves a collision using the impulse method
 func (ir *ImpulseResolver) ResolveCollision(info CollisionInfo) {
-	// Se non c'è stata una collisione, non fare nulla
+	// If there was no collision, do nothing
 	if !info.HasCollided {
 		return
 	}
@@ -113,34 +113,34 @@ func (ir *ImpulseResolver) ResolveCollision(info CollisionInfo) {
 	a := info.BodyA
 	b := info.BodyB
 
-	// Se entrambi i corpi sono statici, non fare nulla
+	// If both bodies are static, do nothing
 	if a.IsStatic() && b.IsStatic() {
 		return
 	}
 
-	// Calcola la velocità relativa
+	// Calculate the relative velocity
 	relativeVelocity := b.Velocity().Sub(a.Velocity())
 
-	// Calcola la velocità relativa lungo la normale
+	// Calculate the relative velocity along the normal
 	velocityAlongNormal := relativeVelocity.Dot(info.Normal)
 
-	// Se i corpi si stanno allontanando, non fare nulla
+	// If the bodies are moving away from each other, do nothing
 	if velocityAlongNormal > 0 {
 		return
 	}
 
-	// Calcola il coefficiente di restituzione (elasticità)
-	// Usa il minimo tra il coefficiente di restituzione del risolutore e quello dei materiali
+	// Calculate the coefficient of restitution (elasticity)
+	// Use the minimum between the resolver's restitution and the materials' elasticity
 	elasticityA := a.Material().Elasticity()
 	elasticityB := b.Material().Elasticity()
 	restitution := math.Min(ir.restitution, math.Min(elasticityA, elasticityB))
 
-	// Calcola l'impulso scalare
+	// Calculate the scalar impulse
 	// j = -(1 + e) * velocityAlongNormal / (1/massA + 1/massB)
 	massA := a.Mass().Value()
 	massB := b.Mass().Value()
 
-	// Gestisci corpi statici (massa infinita)
+	// Handle static bodies (infinite mass)
 	var inverseMassA, inverseMassB float64
 	if a.IsStatic() {
 		inverseMassA = 0
@@ -154,11 +154,11 @@ func (ir *ImpulseResolver) ResolveCollision(info CollisionInfo) {
 		inverseMassB = 1.0 / massB
 	}
 
-	// Calcola l'impulso scalare
+	// Calculate the scalar impulse
 	j := -(1.0 + restitution) * velocityAlongNormal
 	j /= inverseMassA + inverseMassB
 
-	// Applica l'impulso
+	// Apply the impulse
 	impulse := info.Normal.Scale(j)
 
 	if !a.IsStatic() {
@@ -169,26 +169,26 @@ func (ir *ImpulseResolver) ResolveCollision(info CollisionInfo) {
 		b.SetVelocity(b.Velocity().Add(impulse.Scale(inverseMassB)))
 	}
 
-	// Correggi la penetrazione (risoluzione della posizione)
+	// Correct the penetration (position resolution)
 	ir.resolvePosition(info)
 }
 
-// resolvePosition corregge la penetrazione tra i corpi
+// resolvePosition corrects the penetration between bodies
 func (ir *ImpulseResolver) resolvePosition(info CollisionInfo) {
 	a := info.BodyA
 	b := info.BodyB
 
-	// Se entrambi i corpi sono statici, non fare nulla
+	// If both bodies are static, do nothing
 	if a.IsStatic() && b.IsStatic() {
 		return
 	}
 
-	// Costante di correzione della posizione (0.2 - 0.8)
+	// Position correction constant (0.2 - 0.8)
 	const percent = 0.2
-	// Soglia minima di penetrazione
+	// Minimum penetration threshold
 	const slop = 0.01
 
-	// Calcola le masse inverse
+	// Calculate the inverse masses
 	massA := a.Mass().Value()
 	massB := b.Mass().Value()
 	var inverseMassA, inverseMassB float64
@@ -204,16 +204,16 @@ func (ir *ImpulseResolver) resolvePosition(info CollisionInfo) {
 		inverseMassB = 1.0 / massB
 	}
 
-	// Calcola la somma delle masse inverse
+	// Calculate the sum of inverse masses
 	totalInverseMass := inverseMassA + inverseMassB
 	if totalInverseMass <= 0 {
-		return // Entrambi i corpi hanno massa infinita
+		return // Both bodies have infinite mass
 	}
 
-	// Calcola la correzione
+	// Calculate the correction
 	correction := math.Max(info.Depth-slop, 0.0) * percent
 
-	// Applica la correzione
+	// Apply the correction
 	if !a.IsStatic() {
 		a.SetPosition(a.Position().Sub(info.Normal.Scale(correction * inverseMassA / totalInverseMass)))
 	}

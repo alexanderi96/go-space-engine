@@ -1,5 +1,7 @@
 # 4D Physics Engine in Go
 
+![Physics Engine Visualization](assets/image.png)
+
 A physics engine written in Go capable of simulating objects in a four-dimensional space (3 spatial dimensions + time). The engine is designed to be scientifically accurate, highly abstract, and easily extensible.
 
 ## Overview

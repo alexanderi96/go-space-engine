@@ -1,35 +1,35 @@
-// Package material fornisce implementazioni per i materiali fisici
+// Package material provides implementations for physical materials
 package material
 
 import (
 	"github.com/alexanderi96/go-space-engine/core/units"
 )
 
-// Material rappresenta le proprietà fisiche di un materiale
+// Material represents the physical properties of a material
 type Material interface {
-	// Name restituisce il nome del materiale
+	// Name returns the name of the material
 	Name() string
 
-	// Density restituisce la densità del materiale
+	// Density returns the density of the material
 	Density() units.Quantity
 
-	// SpecificHeat restituisce la capacità termica specifica del materiale
+	// SpecificHeat returns the specific heat capacity of the material
 	SpecificHeat() units.Quantity
 
-	// ThermalConductivity restituisce la conducibilità termica del materiale
+	// ThermalConductivity returns the thermal conductivity of the material
 	ThermalConductivity() units.Quantity
 
-	// Emissivity restituisce l'emissività del materiale
+	// Emissivity returns the emissivity of the material
 	Emissivity() float64
 
-	// Elasticity restituisce l'elasticità del materiale
+	// Elasticity returns the elasticity of the material
 	Elasticity() float64
 
-	// Color restituisce il colore del materiale come RGB
+	// Color returns the color of the material as RGB
 	Color() [3]float64
 }
 
-// BasicMaterial implementa un materiale base
+// BasicMaterial implements a basic material
 type BasicMaterial struct {
 	name                string
 	density             units.Quantity
@@ -40,7 +40,7 @@ type BasicMaterial struct {
 	color               [3]float64
 }
 
-// NewBasicMaterial crea un nuovo materiale base
+// NewBasicMaterial creates a new basic material
 func NewBasicMaterial(
 	name string,
 	density units.Quantity,
@@ -61,107 +61,107 @@ func NewBasicMaterial(
 	}
 }
 
-// Name restituisce il nome del materiale
+// Name returns the name of the material
 func (m *BasicMaterial) Name() string {
 	return m.name
 }
 
-// Density restituisce la densità del materiale
+// Density returns the density of the material
 func (m *BasicMaterial) Density() units.Quantity {
 	return m.density
 }
 
-// SpecificHeat restituisce la capacità termica specifica del materiale
+// SpecificHeat returns the specific heat capacity of the material
 func (m *BasicMaterial) SpecificHeat() units.Quantity {
 	return m.specificHeat
 }
 
-// ThermalConductivity restituisce la conducibilità termica del materiale
+// ThermalConductivity returns the thermal conductivity of the material
 func (m *BasicMaterial) ThermalConductivity() units.Quantity {
 	return m.thermalConductivity
 }
 
-// Emissivity restituisce l'emissività del materiale
+// Emissivity returns the emissivity of the material
 func (m *BasicMaterial) Emissivity() float64 {
 	return m.emissivity
 }
 
-// Elasticity restituisce l'elasticità del materiale
+// Elasticity returns the elasticity of the material
 func (m *BasicMaterial) Elasticity() float64 {
 	return m.elasticity
 }
 
-// Color restituisce il colore del materiale
+// Color returns the color of the material
 func (m *BasicMaterial) Color() [3]float64 {
 	return m.color
 }
 
-// Materiali predefiniti
+// Predefined materials
 var (
-	// Iron rappresenta il ferro
+	// Iron represents iron
 	Iron = NewBasicMaterial(
 		"Iron",
-		units.NewQuantity(7874.0, units.Kilogram), // kg/m³ (densità)
-		units.NewQuantity(450.0, units.Joule),     // J/(kg·K) (capacità termica specifica)
-		units.NewQuantity(80.2, units.Watt),       // W/(m·K) (conducibilità termica)
-		0.3,                                       // Emissività
-		0.7,                                       // Elasticità
-		[3]float64{0.6, 0.6, 0.6},                 // Colore grigio
+		units.NewQuantity(7874.0, units.Kilogram), // kg/m³ (density)
+		units.NewQuantity(450.0, units.Joule),     // J/(kg·K) (specific heat capacity)
+		units.NewQuantity(80.2, units.Watt),       // W/(m·K) (thermal conductivity)
+		0.3,                                       // Emissivity
+		0.7,                                       // Elasticity
+		[3]float64{0.6, 0.6, 0.6},                 // Gray color
 	)
 
-	// Copper rappresenta il rame
+	// Copper represents copper
 	Copper = NewBasicMaterial(
 		"Copper",
 		units.NewQuantity(8960.0, units.Kilogram), // kg/m³
 		units.NewQuantity(386.0, units.Joule),     // J/(kg·K)
 		units.NewQuantity(401.0, units.Watt),      // W/(m·K)
-		0.03,                                      // Emissività
-		0.75,                                      // Elasticità
-		[3]float64{0.85, 0.45, 0.2},               // Colore rame
+		0.03,                                      // Emissivity
+		0.75,                                      // Elasticity
+		[3]float64{0.85, 0.45, 0.2},               // Copper color
 	)
 
-	// Ice rappresenta il ghiaccio
+	// Ice represents ice
 	Ice = NewBasicMaterial(
 		"Ice",
 		units.NewQuantity(917.0, units.Kilogram), // kg/m³
 		units.NewQuantity(2108.0, units.Joule),   // J/(kg·K)
 		units.NewQuantity(2.18, units.Watt),      // W/(m·K)
-		0.97,                                     // Emissività
-		0.3,                                      // Elasticità
-		[3]float64{0.8, 0.9, 0.95},               // Colore azzurro chiaro
+		0.97,                                     // Emissivity
+		0.3,                                      // Elasticity
+		[3]float64{0.8, 0.9, 0.95},               // Light blue color
 	)
 
-	// Water rappresenta l'acqua
+	// Water represents water
 	Water = NewBasicMaterial(
 		"Water",
 		units.NewQuantity(997.0, units.Kilogram), // kg/m³
 		units.NewQuantity(4186.0, units.Joule),   // J/(kg·K)
 		units.NewQuantity(0.6, units.Watt),       // W/(m·K)
-		0.95,                                     // Emissività
-		0.0,                                      // Elasticità (fluido)
-		[3]float64{0.0, 0.3, 0.8},                // Colore blu
+		0.95,                                     // Emissivity
+		0.0,                                      // Elasticity (fluid)
+		[3]float64{0.0, 0.3, 0.8},                // Blue color
 	)
 
-	// Rock rappresenta la roccia
+	// Rock represents rock
 	Rock = NewBasicMaterial(
 		"Rock",
 		units.NewQuantity(2700.0, units.Kilogram), // kg/m³
 		units.NewQuantity(840.0, units.Joule),     // J/(kg·K)
 		units.NewQuantity(2.0, units.Watt),        // W/(m·K)
-		0.8,                                       // Emissività
-		0.4,                                       // Elasticità
-		[3]float64{0.5, 0.5, 0.5},                 // Colore grigio
+		0.8,                                       // Emissivity
+		0.4,                                       // Elasticity
+		[3]float64{0.5, 0.5, 0.5},                 // Gray color
 	)
 )
 
-// Composition rappresenta una composizione di materiali
+// Composition represents a composition of materials
 type Composition struct {
-	materials map[Material]float64 // Materiale -> Frazione volumetrica (0-1)
+	materials map[Material]float64 // Material -> Volume fraction (0-1)
 }
 
-// NewComposition crea una nuova composizione
+// NewComposition creates a new composition
 func NewComposition(fractions map[Material]float64) *Composition {
-	// Normalizza le frazioni per assicurarsi che sommino a 1
+	// Normalize fractions to ensure they sum to 1
 	total := 0.0
 	for _, fraction := range fractions {
 		total += fraction
@@ -177,9 +177,9 @@ func NewComposition(fractions map[Material]float64) *Composition {
 	}
 }
 
-// GetEffectiveProperties calcola le proprietà effettive della composizione
+// GetEffectiveProperties calculates the effective properties of the composition
 func (c *Composition) GetEffectiveProperties() (Material, error) {
-	// Calcola le proprietà medie pesate
+	// Calculate weighted average properties
 	name := "Composite"
 	densityValue := 0.0
 	specificHeatValue := 0.0
@@ -201,7 +201,7 @@ func (c *Composition) GetEffectiveProperties() (Material, error) {
 		colorB += color[2] * fraction
 	}
 
-	// Crea un nuovo materiale con le proprietà calcolate
+	// Create a new material with the calculated properties
 	return NewBasicMaterial(
 		name,
 		units.NewQuantity(densityValue, units.Kilogram),

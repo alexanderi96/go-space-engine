@@ -1,4 +1,4 @@
-// Package events fornisce un sistema di eventi per la simulazione
+// Package events provides an event system for the simulation
 package events
 
 import (
@@ -8,92 +8,92 @@ import (
 	"github.com/alexanderi96/go-space-engine/physics/collision"
 )
 
-// EventType rappresenta il tipo di evento
+// EventType represents the type of event
 type EventType int
 
 const (
-	// BodyAdded evento generato quando un corpo viene aggiunto al mondo
+	// BodyAdded event generated when a body is added to the world
 	BodyAdded EventType = iota
-	// BodyRemoved evento generato quando un corpo viene rimosso dal mondo
+	// BodyRemoved event generated when a body is removed from the world
 	BodyRemoved
-	// Collision evento generato quando due corpi collidono
+	// Collision event generated when two bodies collide
 	Collision
-	// BoundaryCollision evento generato quando un corpo collide con i limiti del mondo
+	// BoundaryCollision event generated when a body collides with the world boundaries
 	BoundaryCollision
-	// SimulationStarted evento generato quando la simulazione inizia
+	// SimulationStarted event generated when the simulation starts
 	SimulationStarted
-	// SimulationStopped evento generato quando la simulazione si ferma
+	// SimulationStopped event generated when the simulation stops
 	SimulationStopped
-	// SimulationStep evento generato ad ogni passo della simulazione
+	// SimulationStep event generated at each simulation step
 	SimulationStep
 )
 
-// Event rappresenta un evento nella simulazione
+// Event represents an event in the simulation
 type Event struct {
-	// Type è il tipo di evento
+	// Type is the event type
 	Type EventType
-	// Data contiene i dati dell'evento
+	// Data contains the event data
 	Data interface{}
 }
 
-// BodyEvent rappresenta un evento relativo a un corpo
+// BodyEvent represents an event related to a body
 type BodyEvent struct {
-	// Body è il corpo coinvolto nell'evento
+	// Body is the body involved in the event
 	Body body.Body
 }
 
-// CollisionEvent rappresenta un evento di collisione
+// CollisionEvent represents a collision event
 type CollisionEvent struct {
-	// Info contiene le informazioni sulla collisione
+	// Info contains information about the collision
 	Info collision.CollisionInfo
 }
 
-// BoundaryCollisionEvent rappresenta un evento di collisione con i limiti del mondo
+// BoundaryCollisionEvent represents a collision event with the world boundaries
 type BoundaryCollisionEvent struct {
-	// Body è il corpo coinvolto nella collisione
+	// Body is the body involved in the collision
 	Body body.Body
-	// Boundary è il limite con cui il corpo ha colliso (0=min_x, 1=max_x, 2=min_y, 3=max_y, 4=min_z, 5=max_z)
+	// Boundary is the boundary with which the body collided (0=min_x, 1=max_x, 2=min_y, 3=max_y, 4=min_z, 5=max_z)
 	Boundary int
 }
 
-// SimulationStepEvent rappresenta un evento di passo della simulazione
+// SimulationStepEvent represents a simulation step event
 type SimulationStepEvent struct {
-	// DeltaTime è il passo temporale
+	// DeltaTime is the time step
 	DeltaTime float64
-	// Time è il tempo totale della simulazione
+	// Time is the total simulation time
 	Time float64
 }
 
-// EventListener rappresenta un ascoltatore di eventi
+// EventListener represents an event listener
 type EventListener interface {
-	// OnEvent viene chiamato quando si verifica un evento
+	// OnEvent is called when an event occurs
 	OnEvent(event Event)
 }
 
-// EventSystem rappresenta un sistema di eventi
+// EventSystem represents an event system
 type EventSystem interface {
-	// AddListener aggiunge un ascoltatore per un tipo di evento
+	// AddListener adds a listener for an event type
 	AddListener(listener EventListener, eventType EventType)
-	// RemoveListener rimuove un ascoltatore per un tipo di evento
+	// RemoveListener removes a listener for an event type
 	RemoveListener(listener EventListener, eventType EventType)
-	// DispatchEvent invia un evento a tutti gli ascoltatori registrati
+	// DispatchEvent dispatches an event to all registered listeners
 	DispatchEvent(event Event)
 }
 
-// SimpleEventSystem implementa un sistema di eventi semplice
+// SimpleEventSystem implements a simple event system
 type SimpleEventSystem struct {
 	listeners map[EventType][]EventListener
 	mutex     sync.RWMutex
 }
 
-// NewSimpleEventSystem crea un nuovo sistema di eventi semplice
+// NewSimpleEventSystem creates a new simple event system
 func NewSimpleEventSystem() *SimpleEventSystem {
 	return &SimpleEventSystem{
 		listeners: make(map[EventType][]EventListener),
 	}
 }
 
-// AddListener aggiunge un ascoltatore per un tipo di evento
+// AddListener adds a listener for an event type
 func (es *SimpleEventSystem) AddListener(listener EventListener, eventType EventType) {
 	es.mutex.Lock()
 	defer es.mutex.Unlock()
@@ -105,7 +105,7 @@ func (es *SimpleEventSystem) AddListener(listener EventListener, eventType Event
 	es.listeners[eventType] = append(es.listeners[eventType], listener)
 }
 
-// RemoveListener rimuove un ascoltatore per un tipo di evento
+// RemoveListener removes a listener for an event type
 func (es *SimpleEventSystem) RemoveListener(listener EventListener, eventType EventType) {
 	es.mutex.Lock()
 	defer es.mutex.Unlock()
@@ -113,7 +113,7 @@ func (es *SimpleEventSystem) RemoveListener(listener EventListener, eventType Ev
 	if listeners, exists := es.listeners[eventType]; exists {
 		for i, l := range listeners {
 			if l == listener {
-				// Rimuovi l'ascoltatore scambiandolo con l'ultimo e troncando la slice
+				// Remove the listener by swapping it with the last one and truncating the slice
 				lastIndex := len(listeners) - 1
 				listeners[i] = listeners[lastIndex]
 				es.listeners[eventType] = listeners[:lastIndex]
@@ -123,7 +123,7 @@ func (es *SimpleEventSystem) RemoveListener(listener EventListener, eventType Ev
 	}
 }
 
-// DispatchEvent invia un evento a tutti gli ascoltatori registrati
+// DispatchEvent dispatches an event to all registered listeners
 func (es *SimpleEventSystem) DispatchEvent(event Event) {
 	es.mutex.RLock()
 	defer es.mutex.RUnlock()
@@ -135,20 +135,20 @@ func (es *SimpleEventSystem) DispatchEvent(event Event) {
 	}
 }
 
-// EventLogger è un ascoltatore di eventi che registra gli eventi
+// EventLogger is an event listener that logs events
 type EventLogger struct {
-	// LogFunc è la funzione di logging
+	// LogFunc is the logging function
 	LogFunc func(format string, args ...interface{})
 }
 
-// NewEventLogger crea un nuovo logger di eventi
+// NewEventLogger creates a new event logger
 func NewEventLogger(logFunc func(format string, args ...interface{})) *EventLogger {
 	return &EventLogger{
 		LogFunc: logFunc,
 	}
 }
 
-// OnEvent viene chiamato quando si verifica un evento
+// OnEvent is called when an event occurs
 func (el *EventLogger) OnEvent(event Event) {
 	switch event.Type {
 	case BodyAdded:

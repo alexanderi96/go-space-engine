@@ -1,18 +1,18 @@
-// Package vector fornisce implementazioni e interfacce per vettori 3D e 4D
+// Package vector provides implementations and interfaces for 3D and 4D vectors
 package vector
 
 import (
 	"math"
 )
 
-// Vector3 rappresenta un vettore tridimensionale
+// Vector3 represents a three-dimensional vector
 type Vector3 interface {
-	// Componenti
+	// Components
 	X() float64
 	Y() float64
 	Z() float64
 
-	// Operazioni vettoriali
+	// Vector operations
 	Add(v Vector3) Vector3
 	Sub(v Vector3) Vector3
 	Scale(s float64) Vector3
@@ -24,20 +24,20 @@ type Vector3 interface {
 	Distance(v Vector3) float64
 	DistanceSquared(v Vector3) float64
 
-	// Conversione
+	// Conversion
 	ToArray() [3]float64
 	ToVector4(t float64) Vector4
 }
 
-// Vector4 rappresenta un vettore quadridimensionale (spazio-tempo)
+// Vector4 represents a four-dimensional vector (space-time)
 type Vector4 interface {
-	// Componenti
+	// Components
 	X() float64
 	Y() float64
 	Z() float64
 	T() float64
 
-	// Operazioni vettoriali
+	// Vector operations
 	Add(v Vector4) Vector4
 	Sub(v Vector4) Vector4
 	Scale(s float64) Vector4
@@ -46,49 +46,49 @@ type Vector4 interface {
 	LengthSquared() float64
 	Normalize() Vector4
 
-	// Operazioni specifiche per lo spazio-tempo
+	// Space-time specific operations
 	SpaceLength() float64
 	IsTimelike() bool
 	IsSpacelike() bool
 	IsLightlike() bool
 	ProperTime() float64
 
-	// Conversione
+	// Conversion
 	ToArray() [4]float64
 	ToVector3() Vector3
 }
 
-// Vec3 implementa l'interfaccia Vector3
+// Vec3 implements the Vector3 interface
 type Vec3 struct {
 	x, y, z float64
 }
 
-// NewVector3 crea un nuovo vettore tridimensionale
+// NewVector3 creates a new three-dimensional vector
 func NewVector3(x, y, z float64) Vector3 {
 	return &Vec3{x, y, z}
 }
 
-// Zero3 restituisce un vettore tridimensionale nullo
+// Zero3 returns a zero three-dimensional vector
 func Zero3() Vector3 {
 	return &Vec3{0, 0, 0}
 }
 
-// X restituisce la componente x del vettore
+// X returns the x component of the vector
 func (v *Vec3) X() float64 {
 	return v.x
 }
 
-// Y restituisce la componente y del vettore
+// Y returns the y component of the vector
 func (v *Vec3) Y() float64 {
 	return v.y
 }
 
-// Z restituisce la componente z del vettore
+// Z returns the z component of the vector
 func (v *Vec3) Z() float64 {
 	return v.z
 }
 
-// Add somma due vettori
+// Add sums two vectors
 func (v *Vec3) Add(other Vector3) Vector3 {
 	return &Vec3{
 		v.x + other.X(),
@@ -97,7 +97,7 @@ func (v *Vec3) Add(other Vector3) Vector3 {
 	}
 }
 
-// Sub sottrae due vettori
+// Sub subtracts two vectors
 func (v *Vec3) Sub(other Vector3) Vector3 {
 	return &Vec3{
 		v.x - other.X(),
@@ -106,7 +106,7 @@ func (v *Vec3) Sub(other Vector3) Vector3 {
 	}
 }
 
-// Scale moltiplica un vettore per uno scalare
+// Scale multiplies a vector by a scalar
 func (v *Vec3) Scale(s float64) Vector3 {
 	return &Vec3{
 		v.x * s,
@@ -115,12 +115,12 @@ func (v *Vec3) Scale(s float64) Vector3 {
 	}
 }
 
-// Dot calcola il prodotto scalare tra due vettori
+// Dot calculates the dot product between two vectors
 func (v *Vec3) Dot(other Vector3) float64 {
 	return v.x*other.X() + v.y*other.Y() + v.z*other.Z()
 }
 
-// Cross calcola il prodotto vettoriale tra due vettori
+// Cross calculates the cross product between two vectors
 func (v *Vec3) Cross(other Vector3) Vector3 {
 	return &Vec3{
 		v.y*other.Z() - v.z*other.Y(),
@@ -129,17 +129,17 @@ func (v *Vec3) Cross(other Vector3) Vector3 {
 	}
 }
 
-// LengthSquared calcola il quadrato della lunghezza del vettore
+// LengthSquared calculates the squared length of the vector
 func (v *Vec3) LengthSquared() float64 {
 	return v.x*v.x + v.y*v.y + v.z*v.z
 }
 
-// Length calcola la lunghezza del vettore
+// Length calculates the length of the vector
 func (v *Vec3) Length() float64 {
 	return math.Sqrt(v.LengthSquared())
 }
 
-// Normalize normalizza il vettore
+// Normalize normalizes the vector
 func (v *Vec3) Normalize() Vector3 {
 	length := v.Length()
 	if length < 1e-10 {
@@ -148,7 +148,7 @@ func (v *Vec3) Normalize() Vector3 {
 	return v.Scale(1.0 / length)
 }
 
-// DistanceSquared calcola il quadrato della distanza tra due vettori
+// DistanceSquared calculates the squared distance between two vectors
 func (v *Vec3) DistanceSquared(other Vector3) float64 {
 	dx := v.x - other.X()
 	dy := v.y - other.Y()
@@ -156,57 +156,57 @@ func (v *Vec3) DistanceSquared(other Vector3) float64 {
 	return dx*dx + dy*dy + dz*dz
 }
 
-// Distance calcola la distanza tra due vettori
+// Distance calculates the distance between two vectors
 func (v *Vec3) Distance(other Vector3) float64 {
 	return math.Sqrt(v.DistanceSquared(other))
 }
 
-// ToArray converte il vettore in un array
+// ToArray converts the vector to an array
 func (v *Vec3) ToArray() [3]float64 {
 	return [3]float64{v.x, v.y, v.z}
 }
 
-// ToVector4 converte il vettore 3D in un vettore 4D con la componente temporale specificata
+// ToVector4 converts the 3D vector to a 4D vector with the specified time component
 func (v *Vec3) ToVector4(t float64) Vector4 {
 	return &Vec4{v.x, v.y, v.z, t}
 }
 
-// Vec4 implementa l'interfaccia Vector4
+// Vec4 implements the Vector4 interface
 type Vec4 struct {
 	x, y, z, t float64
 }
 
-// NewVector4 crea un nuovo vettore quadridimensionale
+// NewVector4 creates a new four-dimensional vector
 func NewVector4(x, y, z, t float64) Vector4 {
 	return &Vec4{x, y, z, t}
 }
 
-// Zero4 restituisce un vettore quadridimensionale nullo
+// Zero4 returns a zero four-dimensional vector
 func Zero4() Vector4 {
 	return &Vec4{0, 0, 0, 0}
 }
 
-// X restituisce la componente x del vettore
+// X returns the x component of the vector
 func (v *Vec4) X() float64 {
 	return v.x
 }
 
-// Y restituisce la componente y del vettore
+// Y returns the y component of the vector
 func (v *Vec4) Y() float64 {
 	return v.y
 }
 
-// Z restituisce la componente z del vettore
+// Z returns the z component of the vector
 func (v *Vec4) Z() float64 {
 	return v.z
 }
 
-// T restituisce la componente temporale del vettore
+// T returns the time component of the vector
 func (v *Vec4) T() float64 {
 	return v.t
 }
 
-// Add somma due vettori
+// Add sums two vectors
 func (v *Vec4) Add(other Vector4) Vector4 {
 	return &Vec4{
 		v.x + other.X(),
@@ -216,7 +216,7 @@ func (v *Vec4) Add(other Vector4) Vector4 {
 	}
 }
 
-// Sub sottrae due vettori
+// Sub subtracts two vectors
 func (v *Vec4) Sub(other Vector4) Vector4 {
 	return &Vec4{
 		v.x - other.X(),
@@ -226,7 +226,7 @@ func (v *Vec4) Sub(other Vector4) Vector4 {
 	}
 }
 
-// Scale moltiplica un vettore per uno scalare
+// Scale multiplies a vector by a scalar
 func (v *Vec4) Scale(s float64) Vector4 {
 	return &Vec4{
 		v.x * s,
@@ -236,18 +236,18 @@ func (v *Vec4) Scale(s float64) Vector4 {
 	}
 }
 
-// Dot calcola il prodotto scalare tra due vettori (con metrica di Minkowski)
+// Dot calculates the dot product between two vectors (with Minkowski metric)
 func (v *Vec4) Dot(other Vector4) float64 {
-	// Utilizziamo la metrica di Minkowski (-,+,+,+)
+	// We use the Minkowski metric (-,+,+,+)
 	return -v.t*other.T() + v.x*other.X() + v.y*other.Y() + v.z*other.Z()
 }
 
-// LengthSquared calcola il quadrato della lunghezza del vettore (con metrica di Minkowski)
+// LengthSquared calculates the squared length of the vector (with Minkowski metric)
 func (v *Vec4) LengthSquared() float64 {
 	return v.Dot(v)
 }
 
-// Length calcola la lunghezza del vettore (con metrica di Minkowski)
+// Length calculates the length of the vector (with Minkowski metric)
 func (v *Vec4) Length() float64 {
 	l2 := v.LengthSquared()
 	if l2 < 0 {
@@ -256,7 +256,7 @@ func (v *Vec4) Length() float64 {
 	return math.Sqrt(l2)
 }
 
-// Normalize normalizza il vettore
+// Normalize normalizes the vector
 func (v *Vec4) Normalize() Vector4 {
 	length := v.Length()
 	if math.Abs(length) < 1e-10 {
@@ -265,27 +265,27 @@ func (v *Vec4) Normalize() Vector4 {
 	return v.Scale(1.0 / length)
 }
 
-// SpaceLength calcola la lunghezza spaziale del vettore
+// SpaceLength calculates the spatial length of the vector
 func (v *Vec4) SpaceLength() float64 {
 	return math.Sqrt(v.x*v.x + v.y*v.y + v.z*v.z)
 }
 
-// IsTimelike verifica se il vettore è di tipo tempo
+// IsTimelike checks if the vector is timelike
 func (v *Vec4) IsTimelike() bool {
 	return v.LengthSquared() < 0
 }
 
-// IsSpacelike verifica se il vettore è di tipo spazio
+// IsSpacelike checks if the vector is spacelike
 func (v *Vec4) IsSpacelike() bool {
 	return v.LengthSquared() > 0
 }
 
-// IsLightlike verifica se il vettore è di tipo luce
+// IsLightlike checks if the vector is lightlike
 func (v *Vec4) IsLightlike() bool {
 	return math.Abs(v.LengthSquared()) < 1e-10
 }
 
-// ProperTime calcola il tempo proprio associato al vettore
+// ProperTime calculates the proper time associated with the vector
 func (v *Vec4) ProperTime() float64 {
 	if !v.IsTimelike() {
 		return 0
@@ -293,12 +293,12 @@ func (v *Vec4) ProperTime() float64 {
 	return math.Abs(v.Length())
 }
 
-// ToArray converte il vettore in un array
+// ToArray converts the vector to an array
 func (v *Vec4) ToArray() [4]float64 {
 	return [4]float64{v.x, v.y, v.z, v.t}
 }
 
-// ToVector3 converte il vettore 4D in un vettore 3D
+// ToVector3 converts the 4D vector to a 3D vector
 func (v *Vec4) ToVector3() Vector3 {
 	return &Vec3{v.x, v.y, v.z}
 }

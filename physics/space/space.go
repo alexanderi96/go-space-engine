@@ -1,4 +1,4 @@
-// Package space fornisce strutture spaziali per ottimizzare le query spaziali
+// Package space provides spatial structures to optimize spatial queries
 package space
 
 import (
@@ -10,31 +10,31 @@ import (
 	"github.com/alexanderi96/go-space-engine/physics/body"
 )
 
-// TaskSubmitter rappresenta un'interfaccia per sottomettere task da eseguire in parallelo
+// TaskSubmitter represents an interface for submitting tasks to be executed in parallel
 type TaskSubmitter interface {
-	// Submit sottomette una task da eseguire
+	// Submit submits a task to be executed
 	Submit(task func())
-	// Wait attende che tutte le task siano completate
+	// Wait waits for all tasks to be completed
 	Wait()
 }
 
-// Region rappresenta una regione dello spazio
+// Region represents a region of space
 type Region interface {
-	// Contains verifica se un punto è contenuto nella regione
+	// Contains checks if a point is contained in the region
 	Contains(point vector.Vector3) bool
-	// ContainsSphere verifica se una sfera è contenuta nella regione
+	// ContainsSphere checks if a sphere is contained in the region
 	ContainsSphere(center vector.Vector3, radius float64) bool
-	// Intersects verifica se la regione interseca un'altra regione
+	// Intersects checks if the region intersects another region
 	Intersects(other Region) bool
 }
 
-// AABB rappresenta un Axis-Aligned Bounding Box (scatola di delimitazione allineata agli assi)
+// AABB represents an Axis-Aligned Bounding Box
 type AABB struct {
-	Min vector.Vector3 // Punto minimo (angolo inferiore sinistro posteriore)
-	Max vector.Vector3 // Punto massimo (angolo superiore destro anteriore)
+	Min vector.Vector3 // Minimum point (bottom left back corner)
+	Max vector.Vector3 // Maximum point (top right front corner)
 }
 
-// NewAABB crea un nuovo AABB
+// NewAABB creates a new AABB
 func NewAABB(min, max vector.Vector3) *AABB {
 	return &AABB{
 		Min: min,
@@ -42,16 +42,16 @@ func NewAABB(min, max vector.Vector3) *AABB {
 	}
 }
 
-// Contains verifica se un punto è contenuto nell'AABB
+// Contains checks if a point is contained in the AABB
 func (aabb *AABB) Contains(point vector.Vector3) bool {
 	return point.X() >= aabb.Min.X() && point.X() <= aabb.Max.X() &&
 		point.Y() >= aabb.Min.Y() && point.Y() <= aabb.Max.Y() &&
 		point.Z() >= aabb.Min.Z() && point.Z() <= aabb.Max.Z()
 }
 
-// ContainsSphere verifica se una sfera è contenuta nell'AABB
+// ContainsSphere checks if a sphere is contained in the AABB
 func (aabb *AABB) ContainsSphere(center vector.Vector3, radius float64) bool {
-	// Calcola la distanza al quadrato tra il centro della sfera e il punto più vicino dell'AABB
+	// Calculate the squared distance between the sphere center and the closest point of the AABB
 	closestX := math.Max(aabb.Min.X(), math.Min(center.X(), aabb.Max.X()))
 	closestY := math.Max(aabb.Min.Y(), math.Min(center.Y(), aabb.Max.Y()))
 	closestZ := math.Max(aabb.Min.Z(), math.Min(center.Z(), aabb.Max.Z()))
@@ -60,71 +60,71 @@ func (aabb *AABB) ContainsSphere(center vector.Vector3, radius float64) bool {
 		(closestY-center.Y())*(closestY-center.Y()) +
 		(closestZ-center.Z())*(closestZ-center.Z())
 
-	// La sfera è contenuta se la distanza al quadrato è minore o uguale al raggio al quadrato
+	// The sphere is contained if the squared distance is less than or equal to the squared radius
 	return distanceSquared <= radius*radius
 }
 
-// Intersects verifica se l'AABB interseca un altro AABB
+// Intersects checks if the AABB intersects another AABB
 func (aabb *AABB) Intersects(other Region) bool {
 	otherAABB, ok := other.(*AABB)
 	if !ok {
-		// Se l'altra regione non è un AABB, usa un'implementazione generica
+		// If the other region is not an AABB, use a generic implementation
 		return false
 	}
 
-	// Due AABB si intersecano se si sovrappongono in tutte e tre le dimensioni
+	// Two AABBs intersect if they overlap in all three dimensions
 	return aabb.Min.X() <= otherAABB.Max.X() && aabb.Max.X() >= otherAABB.Min.X() &&
 		aabb.Min.Y() <= otherAABB.Max.Y() && aabb.Max.Y() >= otherAABB.Min.Y() &&
 		aabb.Min.Z() <= otherAABB.Max.Z() && aabb.Max.Z() >= otherAABB.Min.Z()
 }
 
-// Center restituisce il centro dell'AABB
+// Center returns the center of the AABB
 func (aabb *AABB) Center() vector.Vector3 {
 	return aabb.Min.Add(aabb.Max).Scale(0.5)
 }
 
-// Size restituisce le dimensioni dell'AABB
+// Size returns the dimensions of the AABB
 func (aabb *AABB) Size() vector.Vector3 {
 	return aabb.Max.Sub(aabb.Min)
 }
 
-// SpatialStructure rappresenta una struttura spaziale per ottimizzare le query spaziali
+// SpatialStructure represents a spatial structure to optimize spatial queries
 type SpatialStructure interface {
-	// Insert inserisce un corpo nella struttura
+	// Insert inserts a body into the structure
 	Insert(b body.Body)
-	// Remove rimuove un corpo dalla struttura
+	// Remove removes a body from the structure
 	Remove(b body.Body)
-	// Update aggiorna la posizione di un corpo nella struttura
+	// Update updates the position of a body in the structure
 	Update(b body.Body)
-	// UpdateAll aggiorna la posizione di più corpi nella struttura
+	// UpdateAll updates the position of multiple bodies in the structure
 	UpdateAll(bodies []body.Body, taskSubmitter TaskSubmitter)
-	// Query restituisce tutti i corpi che potrebbero interagire con la regione specificata
+	// Query returns all bodies that might interact with the specified region
 	Query(region Region) []body.Body
-	// QuerySphere restituisce tutti i corpi che potrebbero interagire con la sfera specificata
+	// QuerySphere returns all bodies that might interact with the specified sphere
 	QuerySphere(center vector.Vector3, radius float64) []body.Body
-	// Clear rimuove tutti i corpi dalla struttura
+	// Clear removes all bodies from the structure
 	Clear()
 }
 
-// Octree implementa una struttura spaziale ottimizzata basata su un octree
+// Octree implements an optimized spatial structure based on an octree
 type Octree struct {
-	bounds     *AABB       // Limiti dell'octree
-	maxObjects int         // Numero massimo di oggetti per nodo
-	maxLevels  int         // Numero massimo di livelli
-	level      int         // Livello corrente
-	objects    []body.Body // Oggetti in questo nodo
-	children   [8]*Octree  // Figli dell'octree
-	divided    bool        // Indica se l'octree è stato diviso
+	bounds     *AABB       // Octree bounds
+	maxObjects int         // Maximum number of objects per node
+	maxLevels  int         // Maximum number of levels
+	level      int         // Current level
+	objects    []body.Body // Objects in this node
+	children   [8]*Octree  // Octree children
+	divided    bool        // Indicates if the octree has been divided
 
-	// Campi per il calcolo della gravità
-	totalMass    float64        // Massa totale di tutti i corpi in questo nodo e nei suoi figli
-	centerOfMass vector.Vector3 // Centro di massa di tutti i corpi in questo nodo e nei suoi figli
+	// Fields for gravity calculation
+	totalMass    float64        // Total mass of all bodies in this node and its children
+	centerOfMass vector.Vector3 // Center of mass of all bodies in this node and its children
 
-	// Mutex per proteggere l'accesso concorrente
+	// Mutex to protect concurrent access
 	mutex sync.RWMutex
 }
 
-// NewOctree crea un nuovo octree
+// NewOctree creates a new octree
 func NewOctree(bounds *AABB, maxObjects, maxLevels int) *Octree {
 	return &Octree{
 		bounds:       bounds,
@@ -139,7 +139,7 @@ func NewOctree(bounds *AABB, maxObjects, maxLevels int) *Octree {
 	}
 }
 
-// Insert inserisce un corpo nell'octree
+// Insert inserts a body into the octree
 func (ot *Octree) Insert(b body.Body) {
 	ot.mutex.Lock()
 	defer ot.mutex.Unlock()
@@ -147,9 +147,9 @@ func (ot *Octree) Insert(b body.Body) {
 	ot.insertUnsafe(b)
 }
 
-// insertUnsafe inserisce un corpo nell'octree senza bloccare il mutex
+// insertUnsafe inserts a body into the octree without locking the mutex
 func (ot *Octree) insertUnsafe(b body.Body) {
-	// Se l'octree è già diviso, inserisci nei figli appropriati
+	// If the octree is already divided, insert into the appropriate children
 	if ot.divided {
 		indices := ot.getIndices(b)
 		for _, index := range indices {
@@ -158,23 +158,23 @@ func (ot *Octree) insertUnsafe(b body.Body) {
 			}
 		}
 
-		// Aggiorna il centro di massa e la massa totale
+		// Update the center of mass and total mass
 		ot.updateMassAndCenterOfMass(b, true)
 		return
 	}
 
-	// Aggiungi l'oggetto a questo nodo
+	// Add the object to this node
 	ot.objects = append(ot.objects, b)
 
-	// Aggiorna il centro di massa e la massa totale
+	// Update the center of mass and total mass
 	ot.updateMassAndCenterOfMass(b, true)
 
-	// Verifica se è necessario dividere l'octree
+	// Check if it's necessary to divide the octree
 	if len(ot.objects) > ot.maxObjects && ot.level < ot.maxLevels {
-		// Dividi l'octree
+		// Divide the octree
 		ot.split()
 
-		// Ridistribuisci gli oggetti nei figli
+		// Redistribute objects to children
 		for i := 0; i < len(ot.objects); i++ {
 			indices := ot.getIndices(ot.objects[i])
 			for _, index := range indices {
@@ -184,12 +184,12 @@ func (ot *Octree) insertUnsafe(b body.Body) {
 			}
 		}
 
-		// Svuota gli oggetti di questo nodo
+		// Empty the objects of this node
 		ot.objects = make([]body.Body, 0)
 	}
 }
 
-// Remove rimuove un corpo dall'octree
+// Remove removes a body from the octree
 func (ot *Octree) Remove(b body.Body) {
 	ot.mutex.Lock()
 	defer ot.mutex.Unlock()
@@ -197,9 +197,9 @@ func (ot *Octree) Remove(b body.Body) {
 	ot.removeUnsafe(b)
 }
 
-// removeUnsafe rimuove un corpo dall'octree senza bloccare il mutex
+// removeUnsafe removes a body from the octree without locking the mutex
 func (ot *Octree) removeUnsafe(b body.Body) {
-	// Se l'octree è diviso, rimuovi dai figli appropriati
+	// If the octree is divided, remove from the appropriate children
 	if ot.divided {
 		indices := ot.getIndices(b)
 		for _, index := range indices {
@@ -208,30 +208,30 @@ func (ot *Octree) removeUnsafe(b body.Body) {
 			}
 		}
 
-		// Aggiorna il centro di massa e la massa totale
+		// Update the center of mass and total mass
 		ot.updateMassAndCenterOfMass(b, false)
 		return
 	}
 
-	// Rimuovi l'oggetto da questo nodo
+	// Remove the object from this node
 	for i, obj := range ot.objects {
 		if obj.ID() == b.ID() {
-			// Rimuovi l'oggetto scambiandolo con l'ultimo e troncando la slice
+			// Remove the object by swapping it with the last one and truncating the slice
 			lastIndex := len(ot.objects) - 1
 			ot.objects[i] = ot.objects[lastIndex]
 			ot.objects = ot.objects[:lastIndex]
 
-			// Aggiorna il centro di massa e la massa totale
+			// Update the center of mass and total mass
 			ot.updateMassAndCenterOfMass(b, false)
 			break
 		}
 	}
 }
 
-// UpdateAll aggiorna la posizione di più corpi nell'octree
+// UpdateAll updates the position of multiple bodies in the octree
 func (ot *Octree) UpdateAll(bodies []body.Body, taskSubmitter TaskSubmitter) {
 	for _, b := range bodies {
-		b := b // Cattura la variabile per la goroutine
+		b := b // Capture the variable for the goroutine
 		taskSubmitter.Submit(func() {
 			ot.Update(b)
 		})
@@ -239,32 +239,32 @@ func (ot *Octree) UpdateAll(bodies []body.Body, taskSubmitter TaskSubmitter) {
 	taskSubmitter.Wait()
 }
 
-// Update aggiorna la posizione di un corpo nell'octree
+// Update updates the position of a body in the octree
 func (ot *Octree) Update(b body.Body) {
 	ot.mutex.Lock()
 	defer ot.mutex.Unlock()
 
-	// Rimuovi e reinserisci l'oggetto
+	// Remove and reinsert the object
 	ot.removeUnsafe(b)
 	ot.insertUnsafe(b)
 }
 
-// Query restituisce tutti i corpi che potrebbero interagire con la regione specificata
+// Query returns all bodies that might interact with the specified region
 func (ot *Octree) Query(region Region) []body.Body {
 	ot.mutex.RLock()
 	defer ot.mutex.RUnlock()
 
 	result := make([]body.Body, 0)
 
-	// Verifica se la regione interseca questo nodo
+	// Check if the region intersects this node
 	if !region.Intersects(ot.bounds) {
 		return result
 	}
 
-	// Aggiungi gli oggetti di questo nodo
+	// Add the objects of this node
 	result = append(result, ot.objects...)
 
-	// Se l'octree è diviso, query i figli
+	// If the octree is divided, query the children
 	if ot.divided {
 		for i := 0; i < 8; i++ {
 			childResult := ot.children[i].Query(region)
@@ -275,22 +275,22 @@ func (ot *Octree) Query(region Region) []body.Body {
 	return result
 }
 
-// QuerySphere restituisce tutti i corpi che potrebbero interagire con la sfera specificata
+// QuerySphere returns all bodies that might interact with the specified sphere
 func (ot *Octree) QuerySphere(center vector.Vector3, radius float64) []body.Body {
 	ot.mutex.RLock()
 	defer ot.mutex.RUnlock()
 
 	result := make([]body.Body, 0)
 
-	// Verifica se la sfera interseca questo nodo
+	// Check if the sphere intersects this node
 	if !ot.bounds.ContainsSphere(center, radius) {
 		return result
 	}
 
-	// Aggiungi gli oggetti di questo nodo
+	// Add the objects of this node
 	result = append(result, ot.objects...)
 
-	// Se l'octree è diviso, query i figli
+	// If the octree is divided, query the children
 	if ot.divided {
 		for i := 0; i < 8; i++ {
 			childResult := ot.children[i].QuerySphere(center, radius)
@@ -301,14 +301,14 @@ func (ot *Octree) QuerySphere(center vector.Vector3, radius float64) []body.Body
 	return result
 }
 
-// Clear rimuove tutti i corpi dall'octree
+// Clear removes all bodies from the octree
 func (ot *Octree) Clear() {
 	ot.mutex.Lock()
 	defer ot.mutex.Unlock()
 
 	ot.objects = make([]body.Body, 0)
 
-	// Resetta il centro di massa e la massa totale
+	// Reset the center of mass and total mass
 	ot.totalMass = 0
 	ot.centerOfMass = vector.Zero3()
 
@@ -321,14 +321,14 @@ func (ot *Octree) Clear() {
 	}
 }
 
-// split divide l'octree in otto figli
+// split divides the octree into eight children
 func (ot *Octree) split() {
-	// Calcola il centro dell'octree
+	// Calculate the center of the octree
 	center := ot.bounds.Center()
 
-	// Crea gli otto figli
-	// Ordine: [0] = Bottom Left Back, [1] = Bottom Right Back, [2] = Bottom Right Front, [3] = Bottom Left Front,
-	//         [4] = Top Left Back, [5] = Top Right Back, [6] = Top Right Front, [7] = Top Left Front
+	// Create the eight children
+	// Order: [0] = Bottom Left Back, [1] = Bottom Right Back, [2] = Bottom Right Front, [3] = Bottom Left Front,
+	//        [4] = Top Left Back, [5] = Top Right Back, [6] = Top Right Front, [7] = Top Left Front
 	childBounds := [8]*AABB{
 		// [0] Bottom Left Back
 		NewAABB(
@@ -372,7 +372,7 @@ func (ot *Octree) split() {
 		),
 	}
 
-	// Crea gli octree figli
+	// Create the octree children
 	for i := 0; i < 8; i++ {
 		ot.children[i] = NewOctree(childBounds[i], ot.maxObjects, ot.maxLevels)
 		ot.children[i].level = ot.level + 1
@@ -381,14 +381,14 @@ func (ot *Octree) split() {
 	ot.divided = true
 }
 
-// getIndices determina in quali figli un corpo dovrebbe essere inserito
+// getIndices determines which children a body should be inserted into
 func (ot *Octree) getIndices(b body.Body) []int {
 	result := make([]int, 0, 8)
 	center := ot.bounds.Center()
 	position := b.Position()
 	radius := b.Radius().Value()
 
-	// Determina in quali ottanti il corpo si trova
+	// Determine in which octants the body is located
 	top := position.Y()+radius > center.Y()
 	bottom := position.Y()-radius < center.Y()
 	left := position.X()-radius < center.X()
@@ -443,40 +443,40 @@ func (ot *Octree) getIndices(b body.Body) []int {
 	return result
 }
 
-// updateMassAndCenterOfMass aggiorna il centro di massa e la massa totale
+// updateMassAndCenterOfMass updates the center of mass and total mass
 func (ot *Octree) updateMassAndCenterOfMass(b body.Body, adding bool) {
 	mass := b.Mass().Value()
 	position := b.Position()
 
 	if adding {
-		// Aggiunge il corpo
+		// Add the body
 		oldTotalMass := ot.totalMass
 		ot.totalMass += mass
 
 		if oldTotalMass > 0 {
-			// Aggiorna il centro di massa
+			// Update the center of mass
 			ot.centerOfMass = ot.centerOfMass.Scale(oldTotalMass).Add(position.Scale(mass)).Scale(1.0 / ot.totalMass)
 		} else {
-			// Se è il primo corpo, il centro di massa è la sua posizione
+			// If it's the first body, the center of mass is its position
 			ot.centerOfMass = position
 		}
 	} else {
-		// Rimuove il corpo
+		// Remove the body
 		if ot.totalMass > mass {
-			// Aggiorna il centro di massa
+			// Update the center of mass
 			oldTotalMass := ot.totalMass
 			ot.totalMass -= mass
 			ot.centerOfMass = ot.centerOfMass.Scale(oldTotalMass).Sub(position.Scale(mass)).Scale(1.0 / ot.totalMass)
 		} else {
-			// Se era l'ultimo corpo, resetta il centro di massa
+			// If it was the last body, reset the center of mass
 			ot.totalMass = 0
 			ot.centerOfMass = vector.Zero3()
 		}
 	}
 
-	// Se l'octree è diviso, propaga l'aggiornamento ai figli
+	// If the octree is divided, propagate the update to the children
 	if ot.divided {
-		// Ricalcola il centro di massa dai figli
+		// Recalculate the center of mass from the children
 		ot.totalMass = 0
 		weightedPosition := vector.Zero3()
 
@@ -496,7 +496,7 @@ func (ot *Octree) updateMassAndCenterOfMass(b body.Body, adding bool) {
 	}
 }
 
-// CalculateGravity calcola la forza gravitazionale su un corpo utilizzando l'algoritmo Barnes-Hut
+// CalculateGravity calculates the gravitational force on a body using the Barnes-Hut algorithm
 func (ot *Octree) CalculateGravity(b body.Body, theta float64) vector.Vector3 {
 	ot.mutex.RLock()
 	defer ot.mutex.RUnlock()
@@ -506,31 +506,31 @@ func (ot *Octree) CalculateGravity(b body.Body, theta float64) vector.Vector3 {
 	return force
 }
 
-// calculateGravityRecursive calcola ricorsivamente la forza gravitazionale
+// calculateGravityRecursive recursively calculates the gravitational force
 func (ot *Octree) calculateGravityRecursive(b body.Body, theta float64, force *vector.Vector3) {
-	// Se l'octree non è diviso o non ha corpi, calcola la forza direttamente
+	// If the octree is not divided or has no bodies, calculate the force directly
 	if !ot.divided || ot.totalMass == 0 {
 		ot.calculateLeafNodeGravity(b, force)
 		return
 	}
 
-	// Calcola la larghezza del nodo e la distanza dal corpo al centro di massa
+	// Calculate the node width and the distance from the body to the center of mass
 	width := ot.bounds.Max.X() - ot.bounds.Min.X()
 	deltaPos := ot.centerOfMass.Sub(b.Position())
 	distanceSquared := deltaPos.LengthSquared()
 
-	// Evita divisione per zero
+	// Avoid division by zero
 	if distanceSquared < 1e-10 {
 		return
 	}
 
-	// Se il rapporto larghezza/distanza è inferiore a theta, approssima con il centro di massa
+	// If the width/distance ratio is less than theta, approximate with the center of mass
 	if (width * width) < (theta * theta * distanceSquared) {
 		ot.approximateGravityWithCenterOfMass(b, force)
 		return
 	}
 
-	// Altrimenti, calcola ricorsivamente per ogni figlio
+	// Otherwise, calculate recursively for each child
 	for i := 0; i < 8; i++ {
 		if ot.children[i] != nil && ot.children[i].totalMass > 0 {
 			ot.children[i].calculateGravityRecursive(b, theta, force)
@@ -538,66 +538,66 @@ func (ot *Octree) calculateGravityRecursive(b body.Body, theta float64, force *v
 	}
 }
 
-// calculateLeafNodeGravity calcola la forza gravitazionale per ogni corpo nel nodo foglia
+// calculateLeafNodeGravity calculates the gravitational force for each body in the leaf node
 func (ot *Octree) calculateLeafNodeGravity(b body.Body, force *vector.Vector3) {
 
-	// Massa del corpo
+	// Body mass
 	bodyMass := b.Mass().Value()
 	bodyPos := b.Position()
 
-	// Calcola la forza per ogni corpo nel nodo
+	// Calculate the force for each body in the node
 	for _, obj := range ot.objects {
-		// Evita di calcolare la forza su se stesso
+		// Avoid calculating the force on itself
 		if obj.ID() == b.ID() {
 			continue
 		}
 
-		// Calcola il vettore direzione
+		// Calculate the direction vector
 		deltaPos := obj.Position().Sub(bodyPos)
 		distanceSquared := deltaPos.LengthSquared()
 
-		// Evita divisione per zero
+		// Avoid division by zero
 		if distanceSquared <= 1e-10 {
 			continue
 		}
 
-		// Calcola la forza gravitazionale
+		// Calculate the gravitational force
 		distance := math.Sqrt(distanceSquared)
 		direction := deltaPos.Scale(1.0 / distance)
 
 		// F = G * m1 * m2 / r^2
 		forceMagnitude := constants.G * bodyMass * obj.Mass().Value() / distanceSquared
 
-		// Aggiungi la forza al vettore forza totale
+		// Add the force to the total force vector
 		forceVector := *force
 		*force = forceVector.Add(direction.Scale(forceMagnitude))
 	}
 }
 
-// approximateGravityWithCenterOfMass approssima la forza gravitazionale usando il centro di massa
+// approximateGravityWithCenterOfMass approximates the gravitational force using the center of mass
 func (ot *Octree) approximateGravityWithCenterOfMass(b body.Body, force *vector.Vector3) {
 
-	// Massa del corpo
+	// Body mass
 	bodyMass := b.Mass().Value()
 	bodyPos := b.Position()
 
-	// Calcola il vettore direzione
+	// Calculate the direction vector
 	deltaPos := ot.centerOfMass.Sub(bodyPos)
 	distanceSquared := deltaPos.LengthSquared()
 
-	// Evita divisione per zero
+	// Avoid division by zero
 	if distanceSquared <= 1e-10 {
 		return
 	}
 
-	// Calcola la forza gravitazionale
+	// Calculate the gravitational force
 	distance := math.Sqrt(distanceSquared)
 	direction := deltaPos.Scale(1.0 / distance)
 
 	// F = G * m1 * m2 / r^2
 	forceMagnitude := constants.G * bodyMass * ot.totalMass / distanceSquared
 
-	// Aggiungi la forza al vettore forza totale
+	// Add the force to the total force vector
 	forceVector := *force
 	*force = forceVector.Add(direction.Scale(forceMagnitude))
 }

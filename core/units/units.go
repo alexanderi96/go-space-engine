@@ -1,4 +1,4 @@
-// Package units fornisce un sistema di unità di misura per il motore fisico
+// Package units provides a measurement unit system for the physics engine
 package units
 
 import (
@@ -6,58 +6,58 @@ import (
 	"math"
 )
 
-// UnitType rappresenta il tipo di unità di misura
+// UnitType represents the type of measurement unit
 type UnitType int
 
 const (
-	// Length rappresenta un'unità di lunghezza
+	// Length represents a unit of length
 	Length UnitType = iota
-	// Mass rappresenta un'unità di massa
+	// Mass represents a unit of mass
 	Mass
-	// Time rappresenta un'unità di tempo
+	// Time represents a unit of time
 	Time
-	// Temperature rappresenta un'unità di temperatura
+	// Temperature represents a unit of temperature
 	Temperature
-	// Angle rappresenta un'unità di angolo
+	// Angle represents a unit of angle
 	Angle
-	// Force rappresenta un'unità di forza
+	// Force represents a unit of force
 	Force
-	// Energy rappresenta un'unità di energia
+	// Energy represents a unit of energy
 	Energy
-	// Power rappresenta un'unità di potenza
+	// Power represents a unit of power
 	Power
-	// Velocity rappresenta un'unità di velocità
+	// Velocity represents a unit of velocity
 	Velocity
-	// Acceleration rappresenta un'unità di accelerazione
+	// Acceleration represents a unit of acceleration
 	Acceleration
-	// Pressure rappresenta un'unità di pressione
+	// Pressure represents a unit of pressure
 	Pressure
 )
 
-// Unit rappresenta un'unità di misura
+// Unit represents a measurement unit
 type Unit interface {
-	// Type restituisce il tipo di unità
+	// Type returns the unit type
 	Type() UnitType
-	// Name restituisce il nome dell'unità
+	// Name returns the unit name
 	Name() string
-	// Symbol restituisce il simbolo dell'unità
+	// Symbol returns the unit symbol
 	Symbol() string
-	// ConvertTo converte un valore da questa unità a un'altra
+	// ConvertTo converts a value from this unit to another
 	ConvertTo(value float64, target Unit) float64
-	// ConvertFrom converte un valore da un'altra unità a questa
+	// ConvertFrom converts a value from another unit to this one
 	ConvertFrom(value float64, source Unit) float64
 }
 
-// BaseUnit implementa un'unità di misura di base
+// BaseUnit implements a base measurement unit
 type BaseUnit struct {
 	unitType UnitType
 	name     string
 	symbol   string
-	factor   float64 // Fattore di conversione rispetto all'unità SI
-	offset   float64 // Offset per unità con punto zero diverso (es. temperature)
+	factor   float64 // Conversion factor relative to SI unit
+	offset   float64 // Offset for units with different zero point (e.g. temperatures)
 }
 
-// NewBaseUnit crea una nuova unità di base
+// NewBaseUnit creates a new base unit
 func NewBaseUnit(unitType UnitType, name, symbol string, factor, offset float64) *BaseUnit {
 	return &BaseUnit{
 		unitType: unitType,
@@ -68,31 +68,31 @@ func NewBaseUnit(unitType UnitType, name, symbol string, factor, offset float64)
 	}
 }
 
-// Type restituisce il tipo di unità
+// Type returns the unit type
 func (u *BaseUnit) Type() UnitType {
 	return u.unitType
 }
 
-// Name restituisce il nome dell'unità
+// Name returns the unit name
 func (u *BaseUnit) Name() string {
 	return u.name
 }
 
-// Symbol restituisce il simbolo dell'unità
+// Symbol returns the unit symbol
 func (u *BaseUnit) Symbol() string {
 	return u.symbol
 }
 
-// ConvertTo converte un valore da questa unità a un'altra
+// ConvertTo converts a value from this unit to another
 func (u *BaseUnit) ConvertTo(value float64, target Unit) float64 {
 	if u.Type() != target.Type() {
 		panic(fmt.Sprintf("Cannot convert between different unit types: %v and %v", u.Type(), target.Type()))
 	}
 
-	// Converti prima in unità SI
+	// First convert to SI unit
 	siValue := (value + u.offset) * u.factor
 
-	// Poi converti da SI all'unità target
+	// Then convert from SI to target unit
 	targetUnit, ok := target.(*BaseUnit)
 	if !ok {
 		panic("Target unit is not a BaseUnit")
@@ -101,20 +101,20 @@ func (u *BaseUnit) ConvertTo(value float64, target Unit) float64 {
 	return (siValue / targetUnit.factor) - targetUnit.offset
 }
 
-// ConvertFrom converte un valore da un'altra unità a questa
+// ConvertFrom converts a value from another unit to this one
 func (u *BaseUnit) ConvertFrom(value float64, source Unit) float64 {
 	return source.(*BaseUnit).ConvertTo(value, u)
 }
 
-// DerivedUnit implementa un'unità di misura derivata
+// DerivedUnit implements a derived measurement unit
 type DerivedUnit struct {
 	BaseUnit
-	components map[Unit]int // Mappa di unità base e loro esponenti
+	components map[Unit]int // Map of base units and their exponents
 }
 
-// NewDerivedUnit crea una nuova unità derivata
+// NewDerivedUnit creates a new derived unit
 func NewDerivedUnit(unitType UnitType, name, symbol string, components map[Unit]int) *DerivedUnit {
-	// Calcola il fattore di conversione basato sulle componenti
+	// Calculate the conversion factor based on components
 	factor := 1.0
 	for unit, exp := range components {
 		baseUnit, ok := unit.(*BaseUnit)
@@ -130,85 +130,85 @@ func NewDerivedUnit(unitType UnitType, name, symbol string, components map[Unit]
 			name:     name,
 			symbol:   symbol,
 			factor:   factor,
-			offset:   0, // Le unità derivate non hanno offset
+			offset:   0, // Derived units have no offset
 		},
 		components: components,
 	}
 }
 
-// Unità di lunghezza
+// Length units
 var (
-	// Meter è il metro (unità SI di lunghezza)
+	// Meter is the meter (SI unit of length)
 	Meter = NewBaseUnit(Length, "meter", "m", 1.0, 0.0)
-	// Kilometer è il chilometro
+	// Kilometer is the kilometer
 	Kilometer = NewBaseUnit(Length, "kilometer", "km", 1000.0, 0.0)
-	// Centimeter è il centimetro
+	// Centimeter is the centimeter
 	Centimeter = NewBaseUnit(Length, "centimeter", "cm", 0.01, 0.0)
-	// Millimeter è il millimetro
+	// Millimeter is the millimeter
 	Millimeter = NewBaseUnit(Length, "millimeter", "mm", 0.001, 0.0)
-	// Inch è il pollice
+	// Inch is the inch
 	Inch = NewBaseUnit(Length, "inch", "in", 0.0254, 0.0)
-	// Foot è il piede
+	// Foot is the foot
 	Foot = NewBaseUnit(Length, "foot", "ft", 0.3048, 0.0)
-	// Mile è il miglio
+	// Mile is the mile
 	Mile = NewBaseUnit(Length, "mile", "mi", 1609.344, 0.0)
-	// AstronomicalUnit è l'unità astronomica
+	// AstronomicalUnit is the astronomical unit
 	AstronomicalUnit = NewBaseUnit(Length, "astronomical unit", "AU", 1.495978707e11, 0.0)
-	// LightYear è l'anno luce
+	// LightYear is the light year
 	LightYear = NewBaseUnit(Length, "light year", "ly", 9.4607304725808e15, 0.0)
 )
 
-// Unità di massa
+// Mass units
 var (
-	// Kilogram è il chilogrammo (unità SI di massa)
+	// Kilogram is the kilogram (SI unit of mass)
 	Kilogram = NewBaseUnit(Mass, "kilogram", "kg", 1.0, 0.0)
-	// Gram è il grammo
+	// Gram is the gram
 	Gram = NewBaseUnit(Mass, "gram", "g", 0.001, 0.0)
-	// Milligram è il milligrammo
+	// Milligram is the milligram
 	Milligram = NewBaseUnit(Mass, "milligram", "mg", 1e-6, 0.0)
-	// Tonne è la tonnellata
+	// Tonne is the tonne
 	Tonne = NewBaseUnit(Mass, "tonne", "t", 1000.0, 0.0)
-	// Pound è la libbra
+	// Pound is the pound
 	Pound = NewBaseUnit(Mass, "pound", "lb", 0.45359237, 0.0)
-	// SolarMass è la massa solare
+	// SolarMass is the solar mass
 	SolarMass = NewBaseUnit(Mass, "solar mass", "M☉", 1.989e30, 0.0)
 )
 
-// Unità di tempo
+// Time units
 var (
-	// Second è il secondo (unità SI di tempo)
+	// Second is the second (SI unit of time)
 	Second = NewBaseUnit(Time, "second", "s", 1.0, 0.0)
-	// Minute è il minuto
+	// Minute is the minute
 	Minute = NewBaseUnit(Time, "minute", "min", 60.0, 0.0)
-	// Hour è l'ora
+	// Hour is the hour
 	Hour = NewBaseUnit(Time, "hour", "h", 3600.0, 0.0)
-	// Day è il giorno
+	// Day is the day
 	Day = NewBaseUnit(Time, "day", "d", 86400.0, 0.0)
-	// Year è l'anno
-	Year = NewBaseUnit(Time, "year", "yr", 31557600.0, 0.0) // Anno giuliano medio (365.25 giorni)
+	// Year is the year
+	Year = NewBaseUnit(Time, "year", "yr", 31557600.0, 0.0) // Julian mean year (365.25 days)
 )
 
-// Unità di temperatura
+// Temperature units
 var (
-	// Kelvin è il kelvin (unità SI di temperatura)
+	// Kelvin is the kelvin (SI unit of temperature)
 	Kelvin = NewBaseUnit(Temperature, "kelvin", "K", 1.0, 0.0)
-	// Celsius è il grado Celsius
+	// Celsius is the degree Celsius
 	Celsius = NewBaseUnit(Temperature, "Celsius", "°C", 1.0, 273.15)
-	// Fahrenheit è il grado Fahrenheit
+	// Fahrenheit is the degree Fahrenheit
 	Fahrenheit = NewBaseUnit(Temperature, "Fahrenheit", "°F", 5.0/9.0, 459.67)
 )
 
-// Unità di angolo
+// Angle units
 var (
-	// Radian è il radiante (unità SI di angolo)
+	// Radian is the radian (SI unit of angle)
 	Radian = NewBaseUnit(Angle, "radian", "rad", 1.0, 0.0)
-	// Degree è il grado
+	// Degree is the degree
 	Degree = NewBaseUnit(Angle, "degree", "°", math.Pi/180.0, 0.0)
 )
 
-// Unità di forza
+// Force units
 var (
-	// Newton è il newton (unità SI di forza)
+	// Newton is the newton (SI unit of force)
 	Newton = NewDerivedUnit(Force, "newton", "N", map[Unit]int{
 		Kilogram: 1,
 		Meter:    1,
@@ -216,9 +216,9 @@ var (
 	})
 )
 
-// Unità di energia
+// Energy units
 var (
-	// Joule è il joule (unità SI di energia)
+	// Joule is the joule (SI unit of energy)
 	Joule = NewDerivedUnit(Energy, "joule", "J", map[Unit]int{
 		Kilogram: 1,
 		Meter:    2,
@@ -226,9 +226,9 @@ var (
 	})
 )
 
-// Unità di potenza
+// Power units
 var (
-	// Watt è il watt (unità SI di potenza)
+	// Watt is the watt (SI unit of power)
 	Watt = NewDerivedUnit(Power, "watt", "W", map[Unit]int{
 		Kilogram: 1,
 		Meter:    2,
@@ -236,32 +236,32 @@ var (
 	})
 )
 
-// Unità di velocità
+// Velocity units
 var (
-	// MeterPerSecond è il metro al secondo (unità SI di velocità)
+	// MeterPerSecond is the meter per second (SI unit of velocity)
 	MeterPerSecond = NewDerivedUnit(Velocity, "meter per second", "m/s", map[Unit]int{
 		Meter:  1,
 		Second: -1,
 	})
-	// KilometerPerHour è il chilometro all'ora
+	// KilometerPerHour is the kilometer per hour
 	KilometerPerHour = NewDerivedUnit(Velocity, "kilometer per hour", "km/h", map[Unit]int{
 		Kilometer: 1,
 		Hour:      -1,
 	})
 )
 
-// Unità di accelerazione
+// Acceleration units
 var (
-	// MeterPerSecondSquared è il metro al secondo quadrato (unità SI di accelerazione)
+	// MeterPerSecondSquared is the meter per second squared (SI unit of acceleration)
 	MeterPerSecondSquared = NewDerivedUnit(Acceleration, "meter per second squared", "m/s²", map[Unit]int{
 		Meter:  1,
 		Second: -2,
 	})
 )
 
-// Unità di pressione
+// Pressure units
 var (
-	// Pascal è il pascal (unità SI di pressione)
+	// Pascal is the pascal (SI unit of pressure)
 	Pascal = NewDerivedUnit(Pressure, "pascal", "Pa", map[Unit]int{
 		Kilogram: 1,
 		Meter:    -1,
@@ -269,13 +269,13 @@ var (
 	})
 )
 
-// Quantity rappresenta una quantità fisica con un valore e un'unità
+// Quantity represents a physical quantity with a value and a unit
 type Quantity struct {
 	value float64
 	unit  Unit
 }
 
-// NewQuantity crea una nuova quantità
+// NewQuantity creates a new quantity
 func NewQuantity(value float64, unit Unit) Quantity {
 	return Quantity{
 		value: value,
@@ -283,54 +283,54 @@ func NewQuantity(value float64, unit Unit) Quantity {
 	}
 }
 
-// Value restituisce il valore della quantità
+// Value returns the value of the quantity
 func (q Quantity) Value() float64 {
 	return q.value
 }
 
-// Unit restituisce l'unità della quantità
+// Unit returns the unit of the quantity
 func (q Quantity) Unit() Unit {
 	return q.unit
 }
 
-// ConvertTo converte la quantità in un'altra unità
+// ConvertTo converts the quantity to another unit
 func (q Quantity) ConvertTo(unit Unit) Quantity {
 	return NewQuantity(q.unit.ConvertTo(q.value, unit), unit)
 }
 
-// String restituisce una rappresentazione testuale della quantità
+// String returns a textual representation of the quantity
 func (q Quantity) String() string {
 	return fmt.Sprintf("%g %s", q.value, q.unit.Symbol())
 }
 
-// Add somma due quantità (convertendo se necessario)
+// Add sums two quantities (converting if necessary)
 func (q Quantity) Add(other Quantity) Quantity {
 	if q.unit.Type() != other.unit.Type() {
 		panic(fmt.Sprintf("Cannot add quantities of different types: %v and %v", q.unit.Type(), other.unit.Type()))
 	}
 
-	// Converti l'altra quantità nell'unità di questa
+	// Convert the other quantity to this unit
 	otherValue := other.unit.ConvertTo(other.value, q.unit)
 	return NewQuantity(q.value+otherValue, q.unit)
 }
 
-// Sub sottrae due quantità (convertendo se necessario)
+// Sub subtracts two quantities (converting if necessary)
 func (q Quantity) Sub(other Quantity) Quantity {
 	if q.unit.Type() != other.unit.Type() {
 		panic(fmt.Sprintf("Cannot subtract quantities of different types: %v and %v", q.unit.Type(), other.unit.Type()))
 	}
 
-	// Converti l'altra quantità nell'unità di questa
+	// Convert the other quantity to this unit
 	otherValue := other.unit.ConvertTo(other.value, q.unit)
 	return NewQuantity(q.value-otherValue, q.unit)
 }
 
-// Mul moltiplica una quantità per uno scalare
+// Mul multiplies a quantity by a scalar
 func (q Quantity) Mul(scalar float64) Quantity {
 	return NewQuantity(q.value*scalar, q.unit)
 }
 
-// Div divide una quantità per uno scalare
+// Div divides a quantity by a scalar
 func (q Quantity) Div(scalar float64) Quantity {
 	if scalar == 0 {
 		panic("Division by zero")

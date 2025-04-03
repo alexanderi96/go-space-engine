@@ -1,4 +1,4 @@
-// Package adapter fornisce interfacce per il rendering
+// Package adapter provides interfaces for rendering
 package adapter
 
 import (
@@ -8,12 +8,12 @@ import (
 	"github.com/alexanderi96/go-space-engine/simulation/world"
 )
 
-// Color rappresenta un colore RGBA
+// Color represents an RGBA color
 type Color struct {
-	R, G, B, A float64 // Componenti del colore (0-1)
+	R, G, B, A float64 // Color components (0-1)
 }
 
-// NewColor crea un nuovo colore
+// NewColor creates a new color
 func NewColor(r, g, b, a float64) Color {
 	return Color{
 		R: r,
@@ -23,93 +23,93 @@ func NewColor(r, g, b, a float64) Color {
 	}
 }
 
-// Renderer rappresenta un'interfaccia per il rendering
+// Renderer represents an interface for rendering
 type Renderer interface {
-	// Initialize inizializza il renderer
+	// Initialize initializes the renderer
 	Initialize() error
-	// Shutdown chiude il renderer
+	// Shutdown closes the renderer
 	Shutdown() error
 
-	// BeginFrame inizia un nuovo frame
+	// BeginFrame starts a new frame
 	BeginFrame()
-	// EndFrame termina il frame corrente
+	// EndFrame ends the current frame
 	EndFrame()
 
-	// RenderBody renderizza un corpo
+	// RenderBody renders a body
 	RenderBody(b body.Body)
-	// RenderBodies renderizza tutti i corpi
+	// RenderBodies renders all bodies
 	RenderBodies(bodies []body.Body)
 
-	// RenderAABB renderizza un AABB
+	// RenderAABB renders an AABB
 	RenderAABB(aabb *space.AABB, color Color)
-	// RenderOctree renderizza un octree
+	// RenderOctree renders an octree
 	RenderOctree(octree *space.Octree, maxDepth int)
 
-	// RenderLine renderizza una linea
+	// RenderLine renders a line
 	RenderLine(start, end vector.Vector3, color Color)
-	// RenderSphere renderizza una sfera
+	// RenderSphere renders a sphere
 	RenderSphere(center vector.Vector3, radius float64, color Color)
 
-	// SetCamera imposta la posizione e l'orientamento della camera
+	// SetCamera sets the camera position and orientation
 	SetCamera(position, target, up vector.Vector3)
-	// SetCameraFOV imposta il campo visivo della camera
+	// SetCameraFOV sets the camera field of view
 	SetCameraFOV(fov float64)
 
-	// SetBackgroundColor imposta il colore di sfondo
+	// SetBackgroundColor sets the background color
 	SetBackgroundColor(color Color)
 
-	// GetWidth restituisce la larghezza della finestra di rendering
+	// GetWidth returns the width of the rendering window
 	GetWidth() int
-	// GetHeight restituisce l'altezza della finestra di rendering
+	// GetHeight returns the height of the rendering window
 	GetHeight() int
 
-	// IsRunning restituisce true se il renderer è in esecuzione
+	// IsRunning returns true if the renderer is running
 	IsRunning() bool
 
-	// ProcessEvents processa gli eventi del renderer
+	// ProcessEvents processes renderer events
 	ProcessEvents()
 }
 
-// RenderAdapter rappresenta un adattatore per il rendering
+// RenderAdapter represents an adapter for rendering
 type RenderAdapter interface {
-	// GetRenderer restituisce il renderer
+	// GetRenderer returns the renderer
 	GetRenderer() Renderer
 
-	// RenderWorld renderizza il mondo
+	// RenderWorld renders the world
 	RenderWorld(w world.World)
 
-	// SetDebugMode imposta la modalità di debug
+	// SetDebugMode sets the debug mode
 	SetDebugMode(debug bool)
-	// IsDebugMode restituisce true se la modalità di debug è attiva
+	// IsDebugMode returns true if debug mode is active
 	IsDebugMode() bool
 
-	// SetRenderOctree imposta se renderizzare l'octree
+	// SetRenderOctree sets whether to render the octree
 	SetRenderOctree(render bool)
-	// IsRenderOctree restituisce true se l'octree viene renderizzato
+	// IsRenderOctree returns true if the octree is being rendered
 	IsRenderOctree() bool
 
-	// SetRenderBoundingBoxes imposta se renderizzare i bounding box
+	// SetRenderBoundingBoxes sets whether to render bounding boxes
 	SetRenderBoundingBoxes(render bool)
-	// IsRenderBoundingBoxes restituisce true se i bounding box vengono renderizzati
+	// IsRenderBoundingBoxes returns true if bounding boxes are being rendered
 	IsRenderBoundingBoxes() bool
 
-	// SetRenderVelocities imposta se renderizzare i vettori velocità
+	// SetRenderVelocities sets whether to render velocity vectors
 	SetRenderVelocities(render bool)
-	// IsRenderVelocities restituisce true se i vettori velocità vengono renderizzati
+	// IsRenderVelocities returns true if velocity vectors are being rendered
 	IsRenderVelocities() bool
 
-	// SetRenderAccelerations imposta se renderizzare i vettori accelerazione
+	// SetRenderAccelerations sets whether to render acceleration vectors
 	SetRenderAccelerations(render bool)
-	// IsRenderAccelerations restituisce true se i vettori accelerazione vengono renderizzati
+	// IsRenderAccelerations returns true if acceleration vectors are being rendered
 	IsRenderAccelerations() bool
 
-	// SetRenderForces imposta se renderizzare i vettori forza
+	// SetRenderForces sets whether to render force vectors
 	SetRenderForces(render bool)
-	// IsRenderForces restituisce true se i vettori forza vengono renderizzati
+	// IsRenderForces returns true if force vectors are being rendered
 	IsRenderForces() bool
 }
 
-// BaseRenderAdapter implementa un adattatore di base per il rendering
+// BaseRenderAdapter implements a base adapter for rendering
 type BaseRenderAdapter struct {
 	renderer            Renderer
 	debugMode           bool
@@ -120,7 +120,7 @@ type BaseRenderAdapter struct {
 	renderForces        bool
 }
 
-// NewBaseRenderAdapter crea un nuovo adattatore di base per il rendering
+// NewBaseRenderAdapter creates a new base adapter for rendering
 func NewBaseRenderAdapter(renderer Renderer) *BaseRenderAdapter {
 	return &BaseRenderAdapter{
 		renderer:            renderer,
@@ -133,31 +133,31 @@ func NewBaseRenderAdapter(renderer Renderer) *BaseRenderAdapter {
 	}
 }
 
-// GetRenderer restituisce il renderer
+// GetRenderer returns the renderer
 func (ra *BaseRenderAdapter) GetRenderer() Renderer {
 	return ra.renderer
 }
 
-// RenderWorld renderizza il mondo
+// RenderWorld renders the world
 func (ra *BaseRenderAdapter) RenderWorld(w world.World) {
-	// Inizia un nuovo frame
+	// Start a new frame
 	ra.renderer.BeginFrame()
 
-	// Renderizza tutti i corpi
+	// Render all bodies
 	ra.renderer.RenderBodies(w.GetBodies())
 
-	// Renderizza i limiti del mondo
+	// Render world boundaries
 	bounds := w.GetBounds()
 	ra.renderer.RenderAABB(bounds, NewColor(0.5, 0.5, 0.5, 0.5))
 
-	// Renderizza l'octree se richiesto
+	// Render the octree if requested
 	if ra.renderOctree {
 		if octree, ok := w.GetSpatialStructure().(*space.Octree); ok {
 			ra.renderer.RenderOctree(octree, 8)
 		}
 	}
 
-	// Renderizza i bounding box se richiesto
+	// Render bounding boxes if requested
 	if ra.renderBoundingBoxes {
 		for _, b := range w.GetBodies() {
 			position := b.Position()
@@ -169,7 +169,7 @@ func (ra *BaseRenderAdapter) RenderWorld(w world.World) {
 		}
 	}
 
-	// Renderizza i vettori velocità se richiesto
+	// Render velocity vectors if requested
 	if ra.renderVelocities {
 		for _, b := range w.GetBodies() {
 			position := b.Position()
@@ -181,7 +181,7 @@ func (ra *BaseRenderAdapter) RenderWorld(w world.World) {
 		}
 	}
 
-	// Renderizza i vettori accelerazione se richiesto
+	// Render acceleration vectors if requested
 	if ra.renderAccelerations {
 		for _, b := range w.GetBodies() {
 			position := b.Position()
@@ -193,69 +193,69 @@ func (ra *BaseRenderAdapter) RenderWorld(w world.World) {
 		}
 	}
 
-	// Nota: quando si usa il metodo Run, il rendering viene gestito internamente
-	// da G3N, quindi non è necessario chiamare EndFrame qui.
-	// Tuttavia, per compatibilità con l'uso tradizionale, lo chiamiamo comunque.
-	// Il metodo EndFrame è stato modificato per non causare conflitti.
+	// Note: when using the Run method, rendering is handled internally
+	// by G3N, so it's not necessary to call EndFrame here.
+	// However, for compatibility with traditional usage, we call it anyway.
+	// The EndFrame method has been modified to avoid conflicts.
 	ra.renderer.EndFrame()
 }
 
-// SetDebugMode imposta la modalità di debug
+// SetDebugMode sets the debug mode
 func (ra *BaseRenderAdapter) SetDebugMode(debug bool) {
 	ra.debugMode = debug
 }
 
-// IsDebugMode restituisce true se la modalità di debug è attiva
+// IsDebugMode returns true if debug mode is active
 func (ra *BaseRenderAdapter) IsDebugMode() bool {
 	return ra.debugMode
 }
 
-// SetRenderOctree imposta se renderizzare l'octree
+// SetRenderOctree sets whether to render the octree
 func (ra *BaseRenderAdapter) SetRenderOctree(render bool) {
 	ra.renderOctree = render
 }
 
-// IsRenderOctree restituisce true se l'octree viene renderizzato
+// IsRenderOctree returns true if the octree is being rendered
 func (ra *BaseRenderAdapter) IsRenderOctree() bool {
 	return ra.renderOctree
 }
 
-// SetRenderBoundingBoxes imposta se renderizzare i bounding box
+// SetRenderBoundingBoxes sets whether to render bounding boxes
 func (ra *BaseRenderAdapter) SetRenderBoundingBoxes(render bool) {
 	ra.renderBoundingBoxes = render
 }
 
-// IsRenderBoundingBoxes restituisce true se i bounding box vengono renderizzati
+// IsRenderBoundingBoxes returns true if bounding boxes are being rendered
 func (ra *BaseRenderAdapter) IsRenderBoundingBoxes() bool {
 	return ra.renderBoundingBoxes
 }
 
-// SetRenderVelocities imposta se renderizzare i vettori velocità
+// SetRenderVelocities sets whether to render velocity vectors
 func (ra *BaseRenderAdapter) SetRenderVelocities(render bool) {
 	ra.renderVelocities = render
 }
 
-// IsRenderVelocities restituisce true se i vettori velocità vengono renderizzati
+// IsRenderVelocities returns true if velocity vectors are being rendered
 func (ra *BaseRenderAdapter) IsRenderVelocities() bool {
 	return ra.renderVelocities
 }
 
-// SetRenderAccelerations imposta se renderizzare i vettori accelerazione
+// SetRenderAccelerations sets whether to render acceleration vectors
 func (ra *BaseRenderAdapter) SetRenderAccelerations(render bool) {
 	ra.renderAccelerations = render
 }
 
-// IsRenderAccelerations restituisce true se i vettori accelerazione vengono renderizzati
+// IsRenderAccelerations returns true if acceleration vectors are being rendered
 func (ra *BaseRenderAdapter) IsRenderAccelerations() bool {
 	return ra.renderAccelerations
 }
 
-// SetRenderForces imposta se renderizzare i vettori forza
+// SetRenderForces sets whether to render force vectors
 func (ra *BaseRenderAdapter) SetRenderForces(render bool) {
 	ra.renderForces = render
 }
 
-// IsRenderForces restituisce true se i vettori forza vengono renderizzati
+// IsRenderForces returns true if force vectors are being rendered
 func (ra *BaseRenderAdapter) IsRenderForces() bool {
 	return ra.renderForces
 }

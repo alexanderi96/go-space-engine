@@ -1,4 +1,4 @@
-// Package main fornisce un esempio di simulazione con corpi disposti in forme geometriche prestabilite
+// Package main provides an example of simulation with bodies arranged in predefined geometric shapes
 package main
 
 import (
@@ -26,7 +26,7 @@ const (
 
 func main() {
 
-	log.Println("Inizializzazione della simulazione con corpi in forme geometriche con interazione gravitazionale")
+	log.Println("Initializing simulation with bodies in geometric shapes with gravitational interaction")
 
 	if shouldBeProfiled {
 		f, err := os.Create("cpu.pprof")
@@ -37,7 +37,7 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	// Crea la configurazione della simulazione
+	// Create the simulation configuration
 	cfg := config.NewSimulationBuilder().
 		WithTimeStep(0.01).
 		WithMaxBodies(5000).
@@ -51,65 +51,65 @@ func main() {
 		WithOctreeConfig(10, 8).
 		Build()
 
-	// Crea il mondo della simulazione
+	// Create the simulation world
 	w := world.NewPhysicalWorld(cfg.GetWorldBounds())
 
-	// Aggiungi la forza gravitazionale
+	// Add the gravitational force
 	gravityForce := force.NewGravitationalForce()
-	gravityForce.SetTheta(0.5) // Imposta il valore di theta per l'algoritmo Barnes-Hut
+	gravityForce.SetTheta(0.5) // Set the theta value for the Barnes-Hut algorithm
 	w.AddForce(gravityForce)
 
-	// Scegli una delle configurazioni seguenti
-	// Puoi commentare/decommentare quella desiderata
+	// Choose one of the following configurations
+	// You can comment/uncomment the desired one
 
-	// Creazione di un corpo centrale massiccio (opzionale)
+	// Creation of a massive central body (optional)
 	// createCentralBody(w)
 
-	// Crea un cubo di corpi (non statici, influenzati dalla gravità)
+	// Create a cube of bodies (non-static, influenced by gravity)
 	createCuboidFormation(w, 512, 50.0, 100.0, 5.0)
 
-	// Altre formazioni disponibili:
+	// Other available formations:
 	// createSphereFormation(w, 300, 40.0, 80.0, 5.0)
 	// createRingFormation(w, 200, 60.0, 80.0, 5.0)
 	// createSpiralFormation(w, 200, 20.0, 80.0, 5.0, 3)
 	// createBinarySystem(w, 200, 5.0)
 
-	// Crea l'adapter G3N diretto
+	// Create the direct G3N adapter
 	adapter := g3n.NewG3NAdapter()
 
-	// Configura l'adapter
-	adapter.SetBackgroundColor(g3n.NewColor(0.0, 0.0, 0.05, 1.0)) // Sfondo blu molto scuro per lo spazio
+	// Configure the adapter
+	adapter.SetBackgroundColor(g3n.NewColor(0.0, 0.0, 0.05, 1.0)) // Very dark blue background for space
 
-	// Variabili per il timing
+	// Variables for timing
 	lastUpdateTime := time.Now()
 
-	// Avvia il loop di rendering
+	// Start the rendering loop
 	adapter.Run(func(deltaTime time.Duration) {
-		// Calcola il delta time
+		// Calculate the delta time
 		currentTime := time.Now()
 		dt := currentTime.Sub(lastUpdateTime).Seconds()
 		lastUpdateTime = currentTime
 
-		// Limita il delta time per evitare instabilità
+		// Limit the delta time to avoid instability
 		if dt > 0.1 {
 			dt = 0.1
 		}
 
-		// Esegui un passo della simulazione
+		// Execute a simulation step
 		w.Step(0.01)
 
-		// Renderizza il mondo
+		// Render the world
 		adapter.RenderWorld(w)
 	})
 
-	log.Println("Simulazione completata")
+	log.Println("Simulation completed")
 }
 
-// createCentralBody crea un corpo centrale massiccio
+// createCentralBody creates a massive central body
 func createCentralBody(w world.World) {
-	log.Println("Creazione del corpo centrale")
+	log.Println("Creating the central body")
 
-	// Massa elevata per il corpo centrale
+	// High mass for the central body
 	centralMass := 1.5e11
 
 	centralBody := body.NewRigidBody(
@@ -120,44 +120,44 @@ func createCentralBody(w world.World) {
 		createMaterial("CentralBody", 0.9, 0.5, [3]float64{1.0, 0.6, 0.0}),
 	)
 
-	// Il corpo centrale può essere statico o dinamico
-	// Se vuoi che TUTTO sia influenzato dalla gravità, commenta la linea seguente
+	// The central body can be static or dynamic
+	// If you want EVERYTHING to be influenced by gravity, comment out the following line
 	centralBody.SetStatic(true)
 
 	w.AddBody(centralBody)
-	log.Printf("Corpo centrale creato: ID=%v, Posizione=%v", centralBody.ID(), centralBody.Position())
+	log.Printf("Central body created: ID=%v, Position=%v", centralBody.ID(), centralBody.Position())
 }
 
-// createCuboidFormation crea corpi distribuiti in un cubo
+// createCuboidFormation creates bodies distributed in a cube
 func createCuboidFormation(w world.World, count int, minSize, maxSize, minDistance float64) {
-	log.Printf("Creazione di %d corpi in formazione cubica", count)
+	log.Printf("Creating %d bodies in cubic formation", count)
 
-	// Massa del corpo centrale (se presente)
+	// Mass of the central body (if present)
 	// centralMass := 1.5e11
 
-	// Determina il numero di corpi per lato per ottenere un cubo perfetto
-	// Calcola la radice cubica arrotondata all'intero più vicino
+	// Determine the number of bodies per side to get a perfect cube
+	// Calculate the cubic root rounded to the nearest integer
 	bodiesPerSide := int(math.Ceil(math.Pow(float64(count), 1.0/3.0)))
 	actualCount := bodiesPerSide * bodiesPerSide * bodiesPerSide
 
-	log.Printf("Creazione di un cubo %dx%dx%d con %d corpi totali",
+	log.Printf("Creating a cube %dx%dx%d with %d total bodies",
 		bodiesPerSide, bodiesPerSide, bodiesPerSide, actualCount)
 
-	// Calcola la spaziatura tra i corpi
-	spacing := minDistance + 1.0 // Assicura una distanza minima tra i corpi
+	// Calculate the spacing between bodies
+	spacing := minDistance + 1.0 // Ensure a minimum distance between bodies
 
-	// Determina la dimensione totale del cubo
+	// Determine the total size of the cube
 	cubeSize := float64(bodiesPerSide-1) * spacing
 	halfSize := cubeSize / 2.0
 
-	// Posizioni dei corpi già creati
+	// Positions of already created bodies
 	positions := make([]vector.Vector3, 0, actualCount)
 
-	// Crea il reticolo cubico
+	// Create the cubic lattice
 	for x := 0; x < bodiesPerSide; x++ {
 		for y := 0; y < bodiesPerSide; y++ {
 			for z := 0; z < bodiesPerSide; z++ {
-				// Calcola la posizione nel reticolo
+				// Calculate the position in the lattice
 				posX := float64(x)*spacing - halfSize
 				posY := float64(y)*spacing - halfSize
 				posZ := float64(z)*spacing - halfSize
@@ -165,54 +165,54 @@ func createCuboidFormation(w world.World, count int, minSize, maxSize, minDistan
 				position := vector.NewVector3(posX, posY, posZ)
 				positions = append(positions, position)
 
-				// Crea un corpo con massa casuale ma non troppo grande
-				bodyMass := (rand.Float64()*20 + 5.0) * 1e9 // Massa tra 5 e 25
+				// Create a body with random mass but not too large
+				bodyMass := (rand.Float64()*20 + 5.0) * 1e9 // Mass between 5 and 25
 
-				// Calcola una piccola velocità iniziale casuale per evitare una configurazione perfettamente stabile
-				// velMagnitude := rand.Float64() * 0.5 // Velocità iniziale ridotta
+				// Calculate a small random initial velocity to avoid a perfectly stable configuration
+				// velMagnitude := rand.Float64() * 0.5 // Reduced initial velocity
 				// velX := (rand.Float64()*2.0 - 1.0) * velMagnitude
 				// velY := (rand.Float64()*2.0 - 1.0) * velMagnitude
 				// velZ := (rand.Float64()*2.0 - 1.0) * velMagnitude
 
 				// velocity := vector.NewVector3(velX, velY, velZ)
 
-				// Crea il corpo
+				// Create the body
 				newBody := body.NewRigidBody(
 					units.NewQuantity(bodyMass, units.Kilogram),
-					units.NewQuantity(rand.Float64()*0.5+0.5, units.Meter), // Raggio casuale
+					units.NewQuantity(rand.Float64()*0.5+0.5, units.Meter), // Random radius
 					position,
 					// velocity,
 					vector.NewVector3(0, 0, 0),
 					createRandomMaterial(),
 				)
 
-				// Importante: NON impostare il corpo come statico
-				// newBody.SetStatic(false) - questo è il comportamento predefinito
+				// Important: DO NOT set the body as static
+				// newBody.SetStatic(false) - this is the default behavior
 
 				w.AddBody(newBody)
 			}
 		}
 	}
 
-	log.Printf("Formazione cubica creata con %d corpi", len(positions))
+	log.Printf("Cubic formation created with %d bodies", len(positions))
 }
 
-// createSphereFormation crea corpi distribuiti in una sfera
+// createSphereFormation creates bodies distributed in a sphere
 func createSphereFormation(w world.World, count int, minRadius, maxRadius, minDistance float64) {
-	log.Printf("Creazione di %d corpi in formazione sferica", count)
+	log.Printf("Creating %d bodies in spherical formation", count)
 
-	// Massa del corpo centrale
+	// Mass of the central body
 	centralMass := 1.5e11
 
 	positions := make([]vector.Vector3, 0, count)
 
 	for i := 0; i < count; i++ {
-		// Genera un punto sulla sfera con distribuzione uniforme
+		// Generate a point on the sphere with uniform distribution
 		phi := rand.Float64() * 2 * math.Pi
 		costheta := rand.Float64()*2 - 1
 		theta := math.Acos(costheta)
 
-		// Raggio random tra minRadius e maxRadius
+		// Random radius between minRadius and maxRadius
 		radius := minRadius + rand.Float64()*(maxRadius-minRadius)
 
 		x := radius * math.Sin(theta) * math.Cos(phi)
@@ -221,7 +221,7 @@ func createSphereFormation(w world.World, count int, minRadius, maxRadius, minDi
 
 		position := vector.NewVector3(x, y, z)
 
-		// Verifica distanza minima da altri corpi
+		// Check minimum distance from other bodies
 		tooClose := false
 		for _, pos := range positions {
 			if position.Distance(pos) < minDistance {
@@ -230,7 +230,7 @@ func createSphereFormation(w world.World, count int, minRadius, maxRadius, minDi
 			}
 		}
 
-		// Se troppo vicino, riprova
+		// If too close, try again
 		if tooClose {
 			i--
 			continue
@@ -238,31 +238,31 @@ func createSphereFormation(w world.World, count int, minRadius, maxRadius, minDi
 
 		positions = append(positions, position)
 
-		// Calcola la velocità orbitale (ma con una componente casuale)
+		// Calculate the orbital velocity (but with a random component)
 		distance := position.Length()
-		baseSpeed := math.Sqrt(constants.G*centralMass/distance) * 0.8 // 80% della velocità orbitale teorica
+		baseSpeed := math.Sqrt(constants.G*centralMass/distance) * 0.8 // 80% of the theoretical orbital velocity
 
-		// Calcola direzione della velocità con un po' di casualità
+		// Calculate velocity direction with some randomness
 		radialDirection := position.Normalize()
 
-		// Scegliamo un vettore di riferimento
+		// Choose a reference vector
 		reference := vector.NewVector3(0, 1, 0)
 		if math.Abs(radialDirection.Dot(reference)) > 0.9 {
 			reference = vector.NewVector3(1, 0, 0)
 		}
 
-		// Calcola il vettore perpendicolare
+		// Calculate the perpendicular vector
 		tangent := reference.Cross(radialDirection).Normalize()
 
-		// Aggiungi componente casuale alla velocità
-		randomFactor := 0.2 // 20% di casualità
+		// Add random component to the velocity
+		randomFactor := 0.2 // 20% randomness
 		velX := tangent.X() * baseSpeed * (1.0 + (rand.Float64()*2-1)*randomFactor)
 		velY := tangent.Y() * baseSpeed * (1.0 + (rand.Float64()*2-1)*randomFactor)
 		velZ := tangent.Z() * baseSpeed * (1.0 + (rand.Float64()*2-1)*randomFactor)
 
 		velocity := vector.NewVector3(velX, velY, velZ)
 
-		// Crea il corpo
+		// Create the body
 		newBody := body.NewRigidBody(
 			units.NewQuantity(rand.Float64()*50+10, units.Kilogram),
 			units.NewQuantity(rand.Float64()*0.5+0.5, units.Meter),
@@ -274,24 +274,24 @@ func createSphereFormation(w world.World, count int, minRadius, maxRadius, minDi
 		w.AddBody(newBody)
 	}
 
-	log.Printf("Formazione sferica creata con %d corpi", len(positions))
+	log.Printf("Spherical formation created with %d bodies", len(positions))
 }
 
-// createRingFormation crea corpi distribuiti in un anello
+// createRingFormation creates bodies distributed in a ring
 func createRingFormation(w world.World, count int, minRadius, maxRadius, minDistance float64) {
-	log.Printf("Creazione di %d corpi in formazione ad anello", count)
+	log.Printf("Creating %d bodies in ring formation", count)
 
-	// Massa del corpo centrale
+	// Mass of the central body
 	centralMass := 1.5e11
 
 	positions := make([]vector.Vector3, 0, count)
 
 	for i := 0; i < count; i++ {
-		// Genera un punto in un anello
+		// Generate a point in a ring
 		angle := rand.Float64() * 2 * math.Pi
 		radius := minRadius + rand.Float64()*(maxRadius-minRadius)
 
-		// Genera una piccola variazione verticale
+		// Generate a small vertical variation
 		height := (rand.Float64()*2 - 1) * (maxRadius - minRadius) * 0.1
 
 		x := radius * math.Cos(angle)
@@ -300,7 +300,7 @@ func createRingFormation(w world.World, count int, minRadius, maxRadius, minDist
 
 		position := vector.NewVector3(x, y, z)
 
-		// Verifica distanza minima da altri corpi
+		// Check minimum distance from other bodies
 		tooClose := false
 		for _, pos := range positions {
 			if position.Distance(pos) < minDistance {
@@ -309,7 +309,7 @@ func createRingFormation(w world.World, count int, minRadius, maxRadius, minDist
 			}
 		}
 
-		// Se troppo vicino, riprova
+		// If too close, try again
 		if tooClose {
 			i--
 			continue
@@ -317,17 +317,17 @@ func createRingFormation(w world.World, count int, minRadius, maxRadius, minDist
 
 		positions = append(positions, position)
 
-		// Calcola la velocità orbitale
+		// Calculate the orbital velocity
 		orbitSpeed := math.Sqrt(constants.G * centralMass / radius)
 
-		// La velocità deve essere perpendicolare al raggio sul piano dell'anello
+		// The velocity must be perpendicular to the radius on the ring plane
 		velocity := vector.NewVector3(
-			-orbitSpeed*math.Sin(angle),         // Componente x
-			(rand.Float64()*2-1)*0.1*orbitSpeed, // Piccola componente verticale casuale
-			orbitSpeed*math.Cos(angle),          // Componente z
+			-orbitSpeed*math.Sin(angle),         // X component
+			(rand.Float64()*2-1)*0.1*orbitSpeed, // Small random vertical component
+			orbitSpeed*math.Cos(angle),          // Z component
 		)
 
-		// Crea il corpo
+		// Create the body
 		newBody := body.NewRigidBody(
 			units.NewQuantity(rand.Float64()*20+5, units.Kilogram),
 			units.NewQuantity(rand.Float64()*0.5+0.3, units.Meter),
@@ -339,48 +339,48 @@ func createRingFormation(w world.World, count int, minRadius, maxRadius, minDist
 		w.AddBody(newBody)
 	}
 
-	log.Printf("Formazione ad anello creata con %d corpi", len(positions))
+	log.Printf("Ring formation created with %d bodies", len(positions))
 }
 
-// createSpiralFormation crea corpi distribuiti in una spirale
+// createSpiralFormation creates bodies distributed in a spiral
 func createSpiralFormation(w world.World, count int, minRadius, maxRadius, minDistance float64, arms int) {
-	log.Printf("Creazione di %d corpi in formazione a spirale con %d bracci", count, arms)
+	log.Printf("Creating %d bodies in spiral formation with %d arms", count, arms)
 
-	// Massa del corpo centrale
+	// Mass of the central body
 	centralMass := 1.5e11
 
 	positions := make([]vector.Vector3, 0, count)
 
-	// Parametri della spirale
-	turns := 2.0 // Numero di giri completi della spirale
+	// Spiral parameters
+	turns := 2.0 // Number of complete turns of the spiral
 
 	for i := 0; i < count; i++ {
-		// Scegli un braccio casuale
+		// Choose a random arm
 		arm := rand.Intn(arms)
 
-		// Parametro t varia da 0 a 1 lungo la spirale
+		// Parameter t varies from 0 to 1 along the spiral
 		t := rand.Float64()
 
-		// Angolo base per questo braccio della spirale
+		// Base angle for this arm of the spiral
 		baseAngle := 2.0 * math.Pi * float64(arm) / float64(arms)
 
-		// Angolo che aumenta con t
+		// Angle that increases with t
 		angle := baseAngle + turns*2.0*math.Pi*t
 
-		// Il raggio aumenta con t
+		// The radius increases with t
 		radius := minRadius + t*(maxRadius-minRadius)
 
-		// Aggiungi un po' di variazione al raggio
+		// Add some variation to the radius
 		radius += (rand.Float64()*2 - 1) * (maxRadius - minRadius) * 0.05
 
-		// Coordiante x, y, z
+		// X, Y, Z coordinates
 		x := radius * math.Cos(angle)
-		y := (rand.Float64()*2 - 1) * maxRadius * 0.05 // Piccola variazione sull'asse y
+		y := (rand.Float64()*2 - 1) * maxRadius * 0.05 // Small variation on the y-axis
 		z := radius * math.Sin(angle)
 
 		position := vector.NewVector3(x, y, z)
 
-		// Verifica distanza minima da altri corpi
+		// Check minimum distance from other bodies
 		tooClose := false
 		for _, pos := range positions {
 			if position.Distance(pos) < minDistance {
@@ -389,7 +389,7 @@ func createSpiralFormation(w world.World, count int, minRadius, maxRadius, minDi
 			}
 		}
 
-		// Se troppo vicino, riprova
+		// If too close, try again
 		if tooClose {
 			i--
 			continue
@@ -397,17 +397,17 @@ func createSpiralFormation(w world.World, count int, minRadius, maxRadius, minDi
 
 		positions = append(positions, position)
 
-		// Calcola la velocità orbitale
+		// Calculate the orbital velocity
 		orbitSpeed := math.Sqrt(constants.G*centralMass/radius) * 0.9
 
-		// La velocità deve essere perpendicolare al raggio
+		// The velocity must be perpendicular to the radius
 		velocity := vector.NewVector3(
 			-orbitSpeed*math.Sin(angle),
-			(rand.Float64()*2-1)*0.05*orbitSpeed, // Piccola componente verticale
+			(rand.Float64()*2-1)*0.05*orbitSpeed, // Small vertical component
 			orbitSpeed*math.Cos(angle),
 		)
 
-		// Crea il corpo
+		// Create the body
 		newBody := body.NewRigidBody(
 			units.NewQuantity(rand.Float64()*15+5, units.Kilogram),
 			units.NewQuantity(rand.Float64()*0.4+0.3, units.Meter),
@@ -419,35 +419,35 @@ func createSpiralFormation(w world.World, count int, minRadius, maxRadius, minDi
 		w.AddBody(newBody)
 	}
 
-	log.Printf("Formazione a spirale creata con %d corpi", len(positions))
+	log.Printf("Spiral formation created with %d bodies", len(positions))
 }
 
-// createBinarySystem crea un sistema binario con due corpi centrali massicci
+// createBinarySystem creates a binary system with two massive central bodies
 func createBinarySystem(w world.World, satelliteCount int, minDistance float64) {
-	log.Println("Creazione di un sistema binario")
+	log.Println("Creating a binary system")
 
-	// Crea due corpi massicci
+	// Create two massive bodies
 	mass1 := 7.5e10
 	mass2 := 5.0e10
 	separation := 40.0
 
-	// Calcolo della velocità orbitale per i due corpi centrali
-	// Assumiamo che i corpi orbitino attorno al loro centro di massa
+	// Calculation of the orbital velocity for the two central bodies
+	// We assume that the bodies orbit around their center of mass
 	totalMass := mass1 + mass2
 
-	// Posizione del centro di massa
+	// Position of the center of mass
 	centerOfMassX := (mass1*(-separation/2) + mass2*(separation/2)) / totalMass
 
-	// Distanza effettiva di ciascun corpo dal centro di massa
+	// Effective distance of each body from the center of mass
 	dist1 := math.Abs((-separation / 2) - centerOfMassX)
 	dist2 := math.Abs((separation / 2) - centerOfMassX)
 
-	// Velocità orbitale
+	// Orbital velocity
 	orbitPeriod := 2 * math.Pi * math.Sqrt(math.Pow(separation, 3)/(constants.G*totalMass))
 	speed1 := 2 * math.Pi * dist1 / orbitPeriod
 	speed2 := 2 * math.Pi * dist2 / orbitPeriod
 
-	// Creazione del primo corpo centrale
+	// Creation of the first central body
 	body1 := body.NewRigidBody(
 		units.NewQuantity(mass1, units.Kilogram),
 		units.NewQuantity(5.0, units.Meter),
@@ -457,7 +457,7 @@ func createBinarySystem(w world.World, satelliteCount int, minDistance float64) 
 	)
 	w.AddBody(body1)
 
-	// Creazione del secondo corpo centrale
+	// Creation of the second central body
 	body2 := body.NewRigidBody(
 		units.NewQuantity(mass2, units.Kilogram),
 		units.NewQuantity(4.0, units.Meter),
@@ -467,20 +467,20 @@ func createBinarySystem(w world.World, satelliteCount int, minDistance float64) 
 	)
 	w.AddBody(body2)
 
-	log.Println("Corpi centrali del sistema binario creati")
+	log.Println("Central bodies of the binary system created")
 
-	// Crea satelliti attorno al sistema binario
+	// Create satellites around the binary system
 	createSatellites(w, satelliteCount, separation*1.5, separation*5, minDistance, mass1+mass2)
 }
 
-// createSatellites crea satelliti attorno a un punto centrale
+// createSatellites creates satellites around a central point
 func createSatellites(w world.World, count int, minRadius, maxRadius, minDistance, centralMass float64) {
-	log.Printf("Creazione di %d satelliti", count)
+	log.Printf("Creating %d satellites", count)
 
 	positions := make([]vector.Vector3, 0, count)
 
 	for i := 0; i < count; i++ {
-		// Posizione casuale in una sfera
+		// Random position in a sphere
 		phi := rand.Float64() * 2 * math.Pi
 		costheta := rand.Float64()*2 - 1
 		theta := math.Acos(costheta)
@@ -493,7 +493,7 @@ func createSatellites(w world.World, count int, minRadius, maxRadius, minDistanc
 
 		position := vector.NewVector3(x, y, z)
 
-		// Verifica distanza minima da altri corpi
+		// Check minimum distance from other bodies
 		tooClose := false
 		for _, pos := range positions {
 			if position.Distance(pos) < minDistance {
@@ -502,7 +502,7 @@ func createSatellites(w world.World, count int, minRadius, maxRadius, minDistanc
 			}
 		}
 
-		// Se troppo vicino, riprova
+		// If too close, try again
 		if tooClose {
 			i--
 			continue
@@ -510,24 +510,24 @@ func createSatellites(w world.World, count int, minRadius, maxRadius, minDistanc
 
 		positions = append(positions, position)
 
-		// Calcolo della velocità orbitale
+		// Calculation of the orbital velocity
 		distance := position.Length()
 		orbitSpeed := math.Sqrt(constants.G * centralMass / distance)
 
-		// Calcola direzione della velocità
+		// Calculate velocity direction
 		radialDirection := position.Normalize()
 
-		// Vettore di riferimento
+		// Reference vector
 		reference := vector.NewVector3(0, 1, 0)
 		if math.Abs(radialDirection.Dot(reference)) > 0.9 {
 			reference = vector.NewVector3(1, 0, 0)
 		}
 
-		// Calcola il vettore perpendicolare
+		// Calculate the perpendicular vector
 		tangent := reference.Cross(radialDirection).Normalize()
 		velocity := tangent.Scale(orbitSpeed)
 
-		// Crea il satellite
+		// Create the satellite
 		satellite := body.NewRigidBody(
 			units.NewQuantity(rand.Float64()*10+1, units.Kilogram),
 			units.NewQuantity(rand.Float64()*0.4+0.2, units.Meter),
@@ -539,12 +539,12 @@ func createSatellites(w world.World, count int, minRadius, maxRadius, minDistanc
 		w.AddBody(satellite)
 	}
 
-	log.Printf("Satelliti creati: %d", len(positions))
+	log.Printf("Satellites created: %d", len(positions))
 }
 
-// createRandomMaterial crea un materiale con colore casuale
+// createRandomMaterial creates a material with random color
 func createRandomMaterial() physMaterial.Material {
-	// Genera un colore casuale
+	// Generate a random color
 	r := rand.Float64()*0.7 + 0.3
 	g := rand.Float64()*0.7 + 0.3
 	b := rand.Float64()*0.7 + 0.3
@@ -554,13 +554,13 @@ func createRandomMaterial() physMaterial.Material {
 		units.NewQuantity(5000, units.Kilogram),
 		units.NewQuantity(800, units.Joule),
 		units.NewQuantity(1.5, units.Watt),
-		0.7+rand.Float64()*0.3, // Emissività tra 0.7 e 1.0
-		0.3+rand.Float64()*0.6, // Elasticità tra 0.3 e 0.9
-		[3]float64{r, g, b},    // Colore casuale
+		0.7+rand.Float64()*0.3, // Emissivity between 0.7 and 1.0
+		0.3+rand.Float64()*0.6, // Elasticity between 0.3 and 0.9
+		[3]float64{r, g, b},    // Random color
 	)
 }
 
-// createMaterial crea un materiale personalizzato
+// createMaterial creates a custom material
 func createMaterial(name string, emissivity, elasticity float64, color [3]float64) physMaterial.Material {
 	return physMaterial.NewBasicMaterial(
 		name,

@@ -1,4 +1,4 @@
-// Package world fornisce l'implementazione del mondo della simulazione
+// Package world provides the implementation of the simulation world
 package world
 
 import (
@@ -14,59 +14,59 @@ import (
 	"github.com/google/uuid"
 )
 
-// World rappresenta il mondo della simulazione
+// World represents the simulation world
 type World interface {
-	// AddBody aggiunge un corpo al mondo
+	// AddBody adds a body to the world
 	AddBody(b body.Body)
-	// RemoveBody rimuove un corpo dal mondo
+	// RemoveBody removes a body from the world
 	RemoveBody(id uuid.UUID)
-	// GetBody restituisce un corpo dal mondo
+	// GetBody returns a body from the world
 	GetBody(id uuid.UUID) body.Body
-	// GetBodies restituisce tutti i corpi nel mondo
+	// GetBodies returns all bodies in the world
 	GetBodies() []body.Body
-	// GetBodyCount restituisce il numero di corpi nel mondo
+	// GetBodyCount returns the number of bodies in the world
 	GetBodyCount() int
 
-	// AddForce aggiunge una forza al mondo
+	// AddForce adds a force to the world
 	AddForce(f force.Force)
-	// RemoveForce rimuove una forza dal mondo
+	// RemoveForce removes a force from the world
 	RemoveForce(f force.Force)
-	// GetForces restituisce tutte le forze nel mondo
+	// GetForces returns all forces in the world
 	GetForces() []force.Force
 
-	// SetIntegrator imposta l'integratore numerico
+	// SetIntegrator sets the numerical integrator
 	SetIntegrator(i integrator.Integrator)
-	// GetIntegrator restituisce l'integratore numerico
+	// GetIntegrator returns the numerical integrator
 	GetIntegrator() integrator.Integrator
 
-	// SetCollider imposta il rilevatore di collisioni
+	// SetCollider sets the collision detector
 	SetCollider(c collision.Collider)
-	// GetCollider restituisce il rilevatore di collisioni
+	// GetCollider returns the collision detector
 	GetCollider() collision.Collider
 
-	// SetCollisionResolver imposta il risolutore di collisioni
+	// SetCollisionResolver sets the collision resolver
 	SetCollisionResolver(r collision.CollisionResolver)
-	// GetCollisionResolver restituisce il risolutore di collisioni
+	// GetCollisionResolver returns the collision resolver
 	GetCollisionResolver() collision.CollisionResolver
 
-	// SetSpatialStructure imposta la struttura spaziale
+	// SetSpatialStructure sets the spatial structure
 	SetSpatialStructure(s space.SpatialStructure)
-	// GetSpatialStructure restituisce la struttura spaziale
+	// GetSpatialStructure returns the spatial structure
 	GetSpatialStructure() space.SpatialStructure
 
-	// SetBounds imposta i limiti del mondo
+	// SetBounds sets the world boundaries
 	SetBounds(bounds *space.AABB)
-	// GetBounds restituisce i limiti del mondo
+	// GetBounds returns the world boundaries
 	GetBounds() *space.AABB
 
-	// Step avanza la simulazione di un passo temporale
+	// Step advances the simulation by one time step
 	Step(dt float64)
 
-	// Clear rimuove tutti i corpi e le forze dal mondo
+	// Clear removes all bodies and forces from the world
 	Clear()
 }
 
-// WorkerPool rappresenta un pool di worker per il calcolo parallelo
+// WorkerPool represents a worker pool for parallel computation
 type WorkerPool struct {
 	numWorkers int
 	tasks      chan func()
@@ -74,14 +74,14 @@ type WorkerPool struct {
 	mutex      sync.Mutex
 }
 
-// NewWorkerPool crea un nuovo pool di worker
+// NewWorkerPool creates a new worker pool
 func NewWorkerPool(numWorkers int) *WorkerPool {
 	pool := &WorkerPool{
 		numWorkers: numWorkers,
-		tasks:      make(chan func(), numWorkers*10), // Buffer per le task
+		tasks:      make(chan func(), numWorkers*10), // Buffer for tasks
 	}
 
-	// Avvia i worker
+	// Start the workers
 	for i := 0; i < numWorkers; i++ {
 		go pool.worker()
 	}
@@ -89,7 +89,7 @@ func NewWorkerPool(numWorkers int) *WorkerPool {
 	return pool
 }
 
-// worker esegue le task dal canale
+// worker executes tasks from the channel
 func (wp *WorkerPool) worker() {
 	for task := range wp.tasks {
 		task()
@@ -97,7 +97,7 @@ func (wp *WorkerPool) worker() {
 	}
 }
 
-// Submit invia una task al pool
+// Submit sends a task to the pool
 func (wp *WorkerPool) Submit(task func()) {
 	wp.mutex.Lock()
 	wp.wg.Add(1)
@@ -105,12 +105,12 @@ func (wp *WorkerPool) Submit(task func()) {
 	wp.tasks <- task
 }
 
-// Wait attende che tutte le task siano completate
+// Wait waits for all tasks to be completed
 func (wp *WorkerPool) Wait() {
 	wp.wg.Wait()
 }
 
-// PhysicalWorld implementa l'interfaccia World
+// PhysicalWorld implements the World interface
 type PhysicalWorld struct {
 	bodies            map[uuid.UUID]body.Body
 	forces            []force.Force
@@ -122,12 +122,12 @@ type PhysicalWorld struct {
 	workerPool        *WorkerPool
 }
 
-// NewPhysicalWorld crea un nuovo mondo fisico
+// NewPhysicalWorld creates a new physical world
 func NewPhysicalWorld(bounds *space.AABB) *PhysicalWorld {
-	// Crea una struttura spaziale (octree) con limiti predefiniti
+	// Create a spatial structure (octree) with predefined boundaries
 	spatialStructure := space.NewOctree(bounds, 10, 8)
 
-	// Crea un pool di worker che si adatta al numero di core disponibili
+	// Create a worker pool that adapts to the number of available cores
 	numCPU := runtime.NumCPU()
 	workerPool := NewWorkerPool(numCPU)
 
@@ -143,13 +143,13 @@ func NewPhysicalWorld(bounds *space.AABB) *PhysicalWorld {
 	}
 }
 
-// AddBody aggiunge un corpo al mondo
+// AddBody adds a body to the world
 func (w *PhysicalWorld) AddBody(b body.Body) {
 	w.bodies[b.ID()] = b
 	w.spatialStructure.Insert(b)
 }
 
-// RemoveBody rimuove un corpo dal mondo
+// RemoveBody removes a body from the world
 func (w *PhysicalWorld) RemoveBody(id uuid.UUID) {
 	if b, exists := w.bodies[id]; exists {
 		w.spatialStructure.Remove(b)
@@ -157,12 +157,12 @@ func (w *PhysicalWorld) RemoveBody(id uuid.UUID) {
 	}
 }
 
-// GetBody restituisce un corpo dal mondo
+// GetBody returns a body from the world
 func (w *PhysicalWorld) GetBody(id uuid.UUID) body.Body {
 	return w.bodies[id]
 }
 
-// GetBodies restituisce tutti i corpi nel mondo
+// GetBodies returns all bodies in the world
 func (w *PhysicalWorld) GetBodies() []body.Body {
 	bodies := make([]body.Body, 0, len(w.bodies))
 	for _, b := range w.bodies {
@@ -171,21 +171,21 @@ func (w *PhysicalWorld) GetBodies() []body.Body {
 	return bodies
 }
 
-// GetBodyCount restituisce il numero di corpi nel mondo
+// GetBodyCount returns the number of bodies in the world
 func (w *PhysicalWorld) GetBodyCount() int {
 	return len(w.bodies)
 }
 
-// AddForce aggiunge una forza al mondo
+// AddForce adds a force to the world
 func (w *PhysicalWorld) AddForce(f force.Force) {
 	w.forces = append(w.forces, f)
 }
 
-// RemoveForce rimuove una forza dal mondo
+// RemoveForce removes a force from the world
 func (w *PhysicalWorld) RemoveForce(f force.Force) {
 	for i, force := range w.forces {
 		if force == f {
-			// Rimuovi la forza scambiandola con l'ultima e troncando la slice
+			// Remove the force by swapping it with the last one and truncating the slice
 			lastIndex := len(w.forces) - 1
 			w.forces[i] = w.forces[lastIndex]
 			w.forces = w.forces[:lastIndex]
@@ -194,44 +194,44 @@ func (w *PhysicalWorld) RemoveForce(f force.Force) {
 	}
 }
 
-// GetForces restituisce tutte le forze nel mondo
+// GetForces returns all forces in the world
 func (w *PhysicalWorld) GetForces() []force.Force {
 	return w.forces
 }
 
-// SetIntegrator imposta l'integratore numerico
+// SetIntegrator sets the numerical integrator
 func (w *PhysicalWorld) SetIntegrator(i integrator.Integrator) {
 	w.integrator = i
 }
 
-// GetIntegrator restituisce l'integratore numerico
+// GetIntegrator returns the numerical integrator
 func (w *PhysicalWorld) GetIntegrator() integrator.Integrator {
 	return w.integrator
 }
 
-// SetCollider imposta il rilevatore di collisioni
+// SetCollider sets the collision detector
 func (w *PhysicalWorld) SetCollider(c collision.Collider) {
 	w.collider = c
 }
 
-// GetCollider restituisce il rilevatore di collisioni
+// GetCollider returns the collision detector
 func (w *PhysicalWorld) GetCollider() collision.Collider {
 	return w.collider
 }
 
-// SetCollisionResolver imposta il risolutore di collisioni
+// SetCollisionResolver sets the collision resolver
 func (w *PhysicalWorld) SetCollisionResolver(r collision.CollisionResolver) {
 	w.collisionResolver = r
 }
 
-// GetCollisionResolver restituisce il risolutore di collisioni
+// GetCollisionResolver returns the collision resolver
 func (w *PhysicalWorld) GetCollisionResolver() collision.CollisionResolver {
 	return w.collisionResolver
 }
 
-// SetSpatialStructure imposta la struttura spaziale
+// SetSpatialStructure sets the spatial structure
 func (w *PhysicalWorld) SetSpatialStructure(s space.SpatialStructure) {
-	// Trasferisci tutti i corpi dalla vecchia struttura alla nuova
+	// Transfer all bodies from the old structure to the new one
 	bodies := w.GetBodies()
 	w.spatialStructure = s
 	for _, b := range bodies {
@@ -239,49 +239,49 @@ func (w *PhysicalWorld) SetSpatialStructure(s space.SpatialStructure) {
 	}
 }
 
-// GetSpatialStructure restituisce la struttura spaziale
+// GetSpatialStructure returns the spatial structure
 func (w *PhysicalWorld) GetSpatialStructure() space.SpatialStructure {
 	return w.spatialStructure
 }
 
-// SetBounds imposta i limiti del mondo
+// SetBounds sets the world boundaries
 func (w *PhysicalWorld) SetBounds(bounds *space.AABB) {
 	w.bounds = bounds
 }
 
-// GetBounds restituisce i limiti del mondo
+// GetBounds returns the world boundaries
 func (w *PhysicalWorld) GetBounds() *space.AABB {
 	return w.bounds
 }
 
-// Step avanza la simulazione di un passo temporale
+// Step advances the simulation by one time step
 func (w *PhysicalWorld) Step(dt float64) {
-	// Applica le forze
+	// Apply forces
 	w.applyForces()
 
-	// Rileva e risolvi le collisioni
+	// Detect and resolve collisions
 	w.handleCollisions()
 
-	// Integra le equazioni del moto in parallelo
+	// Integrate the equations of motion in parallel
 	bodies := w.GetBodies()
 	w.integrator.IntegrateAll(bodies, dt, w.workerPool)
 
-	// Aggiorna la struttura spaziale
+	// Update the spatial structure
 	w.updateSpatialStructure()
 }
 
-// Clear rimuove tutti i corpi e le forze dal mondo
+// Clear removes all bodies and forces from the world
 func (w *PhysicalWorld) Clear() {
 	w.bodies = make(map[uuid.UUID]body.Body)
 	w.forces = make([]force.Force, 0)
 	w.spatialStructure.Clear()
 }
 
-// applyForces applica tutte le forze a tutti i corpi
+// applyForces applies all forces to all bodies
 func (w *PhysicalWorld) applyForces() {
 	bodies := w.GetBodies()
 
-	// Verifica se ci sono forze gravitazionali che possono utilizzare l'octree
+	// Check if there are gravitational forces that can use the octree
 	var gravityForce *force.GravitationalForce
 	for _, f := range w.forces {
 		if gf, ok := f.(*force.GravitationalForce); ok {
@@ -290,18 +290,18 @@ func (w *PhysicalWorld) applyForces() {
 		}
 	}
 
-	// Applica le forze globali a tutti i corpi in parallelo
+	// Apply global forces to all bodies in parallel
 	for _, f := range w.forces {
 		if f.IsGlobal() {
-			// Se è una forza gravitazionale e abbiamo un octree, usa l'algoritmo Barnes-Hut
+			// If it's a gravitational force and we have an octree, use the Barnes-Hut algorithm
 			if gravityForce != nil && f == gravityForce {
 				octree, ok := w.spatialStructure.(*space.Octree)
 				if ok {
-					// Usa l'octree per calcolare la gravità in parallelo
+					// Use the octree to calculate gravity in parallel
 					for _, b := range bodies {
-						b := b // Cattura la variabile per la goroutine
+						b := b // Capture the variable for the goroutine
 						w.workerPool.Submit(func() {
-							// Calcola la forza gravitazionale usando l'algoritmo Barnes-Hut
+							// Calculate the gravitational force using the Barnes-Hut algorithm
 							force := octree.CalculateGravity(b, gravityForce.GetTheta())
 							b.ApplyForce(force)
 						})
@@ -311,10 +311,10 @@ func (w *PhysicalWorld) applyForces() {
 				}
 			}
 
-			// Per altre forze globali, applica normalmente in parallelo
+			// For other global forces, apply normally in parallel
 			for _, b := range bodies {
-				b := b // Cattura la variabile per la goroutine
-				f := f // Cattura la variabile per la goroutine
+				b := b // Capture the variable for the goroutine
+				f := f // Capture the variable for the goroutine
 				w.workerPool.Submit(func() {
 					force := f.Apply(b)
 					b.ApplyForce(force)
@@ -324,10 +324,10 @@ func (w *PhysicalWorld) applyForces() {
 		}
 	}
 
-	// Applica le forze tra coppie di corpi in parallelo
+	// Apply forces between pairs of bodies in parallel
 	for i := 0; i < len(bodies); i++ {
 		for j := i + 1; j < len(bodies); j++ {
-			i, j := i, j // Cattura le variabili per la goroutine
+			i, j := i, j // Capture the variables for the goroutine
 			w.workerPool.Submit(func() {
 				for _, f := range w.forces {
 					if !f.IsGlobal() {
@@ -342,127 +342,127 @@ func (w *PhysicalWorld) applyForces() {
 	w.workerPool.Wait()
 }
 
-// handleCollisions rileva e risolve le collisioni
+// handleCollisions detects and resolves collisions
 func (w *PhysicalWorld) handleCollisions() {
 	bodies := w.GetBodies()
 
-	// Rileva e risolvi le collisioni tra coppie di corpi in parallelo
+	// Detect and resolve collisions between pairs of bodies in parallel
 	for i := 0; i < len(bodies); i++ {
-		i := i // Cattura la variabile per la goroutine
+		i := i // Capture the variable for the goroutine
 		w.workerPool.Submit(func() {
-			// Usa la struttura spaziale per trovare potenziali collisioni
+			// Use the spatial structure to find potential collisions
 			radius := bodies[i].Radius().Value()
 			nearbyBodies := w.spatialStructure.QuerySphere(bodies[i].Position(), radius*2)
 
 			for _, b := range nearbyBodies {
-				// Evita di controllare la collisione con se stesso
+				// Avoid checking collision with itself
 				if b.ID() == bodies[i].ID() {
 					continue
 				}
 
-				// Rileva la collisione
+				// Detect the collision
 				info := w.collider.CheckCollision(bodies[i], b)
 
-				// Risolvi la collisione
+				// Resolve the collision
 				if info.HasCollided {
 					w.collisionResolver.ResolveCollision(info)
 				}
 			}
 
-			// Controlla anche le collisioni con i limiti del mondo
+			// Also check collisions with world boundaries
 			w.handleBoundaryCollisions(bodies[i])
 		})
 	}
 	w.workerPool.Wait()
 }
 
-// handleBoundaryCollisions gestisce le collisioni con i limiti del mondo
+// handleBoundaryCollisions handles collisions with world boundaries
 func (w *PhysicalWorld) handleBoundaryCollisions(b body.Body) {
-	// Se il corpo è statico, non fare nulla
+	// If the body is static, do nothing
 	if b.IsStatic() {
 		return
 	}
 
-	// Ottieni i dati del corpo una sola volta per ridurre le chiamate di metodo
+	// Get the body data only once to reduce method calls
 	position := b.Position()
 	velocity := b.Velocity()
 	radius := b.Radius().Value()
 	bounds := w.bounds
 	elasticity := b.Material().Elasticity()
 
-	// Flag per tracciare se la posizione o la velocità sono state modificate
+	// Flags to track if position or velocity have been modified
 	positionChanged := false
 	velocityChanged := false
 	newPosition := position
 	newVelocity := velocity
 
-	// Collisione con il limite inferiore X
+	// Collision with the lower X boundary
 	if position.X()-radius < bounds.Min.X() {
-		// Correggi la posizione
+		// Correct the position
 		newPosition = vector.NewVector3(bounds.Min.X()+radius, position.Y(), position.Z())
 		positionChanged = true
 
-		// Inverti la velocità X con smorzamento
+		// Invert the X velocity with damping
 		newVelocity = vector.NewVector3(-velocity.X()*elasticity, velocity.Y(), velocity.Z())
 		velocityChanged = true
 	}
 
-	// Collisione con il limite superiore X
+	// Collision with the upper X boundary
 	if position.X()+radius > bounds.Max.X() {
-		// Correggi la posizione
+		// Correct the position
 		newPosition = vector.NewVector3(bounds.Max.X()-radius, position.Y(), position.Z())
 		positionChanged = true
 
-		// Inverti la velocità X con smorzamento
+		// Invert the X velocity with damping
 		newVelocity = vector.NewVector3(-velocity.X()*elasticity, velocity.Y(), velocity.Z())
 		velocityChanged = true
 	}
 
-	// Collisione con il limite inferiore Y
+	// Collision with the lower Y boundary
 	if position.Y()-radius < bounds.Min.Y() {
-		// Correggi la posizione
+		// Correct the position
 		newPosition = vector.NewVector3(newPosition.X(), bounds.Min.Y()+radius, position.Z())
 		positionChanged = true
 
-		// Inverti la velocità Y con smorzamento
+		// Invert the Y velocity with damping
 		newVelocity = vector.NewVector3(newVelocity.X(), -velocity.Y()*elasticity, velocity.Z())
 		velocityChanged = true
 	}
 
-	// Collisione con il limite superiore Y
+	// Collision with the upper Y boundary
 	if position.Y()+radius > bounds.Max.Y() {
-		// Correggi la posizione
+		// Correct the position
 		newPosition = vector.NewVector3(newPosition.X(), bounds.Max.Y()-radius, position.Z())
 		positionChanged = true
 
-		// Inverti la velocità Y con smorzamento
+		// Invert the Y velocity with damping
 		newVelocity = vector.NewVector3(newVelocity.X(), -velocity.Y()*elasticity, velocity.Z())
 		velocityChanged = true
 	}
 
-	// Collisione con il limite inferiore Z
+	// Collision with the lower Z boundary
 	if position.Z()-radius < bounds.Min.Z() {
-		// Correggi la posizione
+		// Correct the position
 		newPosition = vector.NewVector3(newPosition.X(), newPosition.Y(), bounds.Min.Z()+radius)
 		positionChanged = true
 
-		// Inverti la velocità Z con smorzamento
+		// Invert the Z velocity with damping
 		newVelocity = vector.NewVector3(newVelocity.X(), newVelocity.Y(), -velocity.Z()*elasticity)
 		velocityChanged = true
 	}
 
-	// Collisione con il limite superiore Z
+	// Collision with the upper Z boundary
 	if position.Z()+radius > bounds.Max.Z() {
-		// Correggi la posizione
+		// Correct the position
 		newPosition = vector.NewVector3(newPosition.X(), newPosition.Y(), bounds.Max.Z()-radius)
 		positionChanged = true
 
-		// Inverti la velocità Z con smorzamento
+		// Invert the Z velocity with damping
 		newVelocity = vector.NewVector3(newVelocity.X(), newVelocity.Y(), -velocity.Z()*elasticity)
 		velocityChanged = true
 	}
 
-	// Aggiorna la posizione e la velocità solo se necessario
+	// Update position and velocity only if necessary
 	if positionChanged {
 		b.SetPosition(newPosition)
 	}
@@ -471,8 +471,8 @@ func (w *PhysicalWorld) handleBoundaryCollisions(b body.Body) {
 	}
 }
 
-// updateSpatialStructure aggiorna la struttura spaziale
+// updateSpatialStructure updates the spatial structure
 func (w *PhysicalWorld) updateSpatialStructure() {
-	// Aggiorna la struttura spaziale in parallelo
+	// Update the spatial structure in parallel
 	w.spatialStructure.UpdateAll(w.GetBodies(), w.workerPool)
 }

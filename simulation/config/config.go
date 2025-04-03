@@ -1,4 +1,4 @@
-// Package config fornisce la configurazione per la simulazione
+// Package config provides configuration for the simulation
 package config
 
 import (
@@ -11,32 +11,32 @@ import (
 	"github.com/alexanderi96/go-space-engine/physics/space"
 )
 
-// Config rappresenta la configurazione della simulazione
+// Config represents the simulation configuration
 type Config struct {
-	// Configurazione generale
-	TimeStep           float64 `json:"timeStep"`           // Passo temporale della simulazione (s)
-	MaxBodies          int     `json:"maxBodies"`          // Numero massimo di corpi
-	GravityEnabled     bool    `json:"gravityEnabled"`     // Indica se la gravità è abilitata
-	GravityConstant    float64 `json:"gravityConstant"`    // Costante gravitazionale (m³/kg⋅s²)
-	CollisionsEnabled  bool    `json:"collisionsEnabled"`  // Indica se le collisioni sono abilitate
-	BoundaryCollisions bool    `json:"boundaryCollisions"` // Indica se le collisioni con i limiti sono abilitate
+	// General configuration
+	TimeStep           float64 `json:"timeStep"`           // Simulation time step (s)
+	MaxBodies          int     `json:"maxBodies"`          // Maximum number of bodies
+	GravityEnabled     bool    `json:"gravityEnabled"`     // Indicates if gravity is enabled
+	GravityConstant    float64 `json:"gravityConstant"`    // Gravitational constant (m³/kg⋅s²)
+	CollisionsEnabled  bool    `json:"collisionsEnabled"`  // Indicates if collisions are enabled
+	BoundaryCollisions bool    `json:"boundaryCollisions"` // Indicates if boundary collisions are enabled
 
-	// Configurazione dell'octree
-	OctreeMaxObjects int `json:"octreeMaxObjects"` // Numero massimo di oggetti per nodo dell'octree
-	OctreeMaxLevels  int `json:"octreeMaxLevels"`  // Numero massimo di livelli dell'octree
+	// Octree configuration
+	OctreeMaxObjects int `json:"octreeMaxObjects"` // Maximum number of objects per octree node
+	OctreeMaxLevels  int `json:"octreeMaxLevels"`  // Maximum number of octree levels
 
-	// Configurazione dei limiti del mondo
-	WorldMin vector.Vector3 `json:"worldMin"` // Punto minimo dei limiti del mondo
-	WorldMax vector.Vector3 `json:"worldMax"` // Punto massimo dei limiti del mondo
+	// World boundaries configuration
+	WorldMin vector.Vector3 `json:"worldMin"` // Minimum point of world boundaries
+	WorldMax vector.Vector3 `json:"worldMax"` // Maximum point of world boundaries
 
-	// Configurazione della fisica
-	Restitution float64 `json:"restitution"` // Coefficiente di restituzione (elasticità)
+	// Physics configuration
+	Restitution float64 `json:"restitution"` // Coefficient of restitution (elasticity)
 
-	// Configurazione dell'integratore
-	IntegratorType string `json:"integratorType"` // Tipo di integratore ("euler", "verlet", "rk4")
+	// Integrator configuration
+	IntegratorType string `json:"integratorType"` // Integrator type ("euler", "verlet", "rk4")
 }
 
-// NewDefaultConfig crea una nuova configurazione con valori predefiniti
+// NewDefaultConfig creates a new configuration with default values
 func NewDefaultConfig() *Config {
 	return &Config{
 		TimeStep:           0.01,
@@ -58,23 +58,23 @@ func NewDefaultConfig() *Config {
 	}
 }
 
-// GetWorldBounds restituisce i limiti del mondo come AABB
+// GetWorldBounds returns the world boundaries as AABB
 func (c *Config) GetWorldBounds() *space.AABB {
 	return space.NewAABB(c.WorldMin, c.WorldMax)
 }
 
-// GetTimeStepQuantity restituisce il passo temporale come Quantity
+// GetTimeStepQuantity returns the time step as a Quantity
 func (c *Config) GetTimeStepQuantity() units.Quantity {
 	return units.NewQuantity(c.TimeStep, units.Second)
 }
 
-// GetGravityConstantQuantity restituisce la costante gravitazionale come Quantity
+// GetGravityConstantQuantity returns the gravitational constant as a Quantity
 func (c *Config) GetGravityConstantQuantity() units.Quantity {
-	// G ha unità di misura m³/(kg⋅s²)
+	// G has units of m³/(kg⋅s²)
 	return units.NewQuantity(c.GravityConstant, units.Newton)
 }
 
-// SaveToFile salva la configurazione su file
+// SaveToFile saves the configuration to a file
 func (c *Config) SaveToFile(filename string) error {
 	data, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
@@ -84,7 +84,7 @@ func (c *Config) SaveToFile(filename string) error {
 	return ioutil.WriteFile(filename, data, 0644)
 }
 
-// LoadFromFile carica la configurazione da file
+// LoadFromFile loads the configuration from a file
 func LoadFromFile(filename string) (*Config, error) {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -100,81 +100,81 @@ func LoadFromFile(filename string) (*Config, error) {
 	return config, nil
 }
 
-// SimulationBuilder è un builder per la simulazione
+// SimulationBuilder is a builder for the simulation
 type SimulationBuilder struct {
 	config *Config
 }
 
-// NewSimulationBuilder crea un nuovo builder per la simulazione
+// NewSimulationBuilder creates a new builder for the simulation
 func NewSimulationBuilder() *SimulationBuilder {
 	return &SimulationBuilder{
 		config: NewDefaultConfig(),
 	}
 }
 
-// WithTimeStep imposta il passo temporale
+// WithTimeStep sets the time step
 func (b *SimulationBuilder) WithTimeStep(timeStep float64) *SimulationBuilder {
 	b.config.TimeStep = timeStep
 	return b
 }
 
-// WithMaxBodies imposta il numero massimo di corpi
+// WithMaxBodies sets the maximum number of bodies
 func (b *SimulationBuilder) WithMaxBodies(maxBodies int) *SimulationBuilder {
 	b.config.MaxBodies = maxBodies
 	return b
 }
 
-// WithGravity imposta se la gravità è abilitata
+// WithGravity sets whether gravity is enabled
 func (b *SimulationBuilder) WithGravity(enabled bool) *SimulationBuilder {
 	b.config.GravityEnabled = enabled
 	return b
 }
 
-// WithGravityConstant imposta la costante gravitazionale
+// WithGravityConstant sets the gravitational constant
 func (b *SimulationBuilder) WithGravityConstant(g float64) *SimulationBuilder {
 	b.config.GravityConstant = g
 	return b
 }
 
-// WithCollisions imposta se le collisioni sono abilitate
+// WithCollisions sets whether collisions are enabled
 func (b *SimulationBuilder) WithCollisions(enabled bool) *SimulationBuilder {
 	b.config.CollisionsEnabled = enabled
 	return b
 }
 
-// WithBoundaryCollisions imposta se le collisioni con i limiti sono abilitate
+// WithBoundaryCollisions sets whether boundary collisions are enabled
 func (b *SimulationBuilder) WithBoundaryCollisions(enabled bool) *SimulationBuilder {
 	b.config.BoundaryCollisions = enabled
 	return b
 }
 
-// WithOctreeConfig imposta la configurazione dell'octree
+// WithOctreeConfig sets the octree configuration
 func (b *SimulationBuilder) WithOctreeConfig(maxObjects, maxLevels int) *SimulationBuilder {
 	b.config.OctreeMaxObjects = maxObjects
 	b.config.OctreeMaxLevels = maxLevels
 	return b
 }
 
-// WithWorldBounds imposta i limiti del mondo
+// WithWorldBounds sets the world boundaries
 func (b *SimulationBuilder) WithWorldBounds(min, max vector.Vector3) *SimulationBuilder {
 	b.config.WorldMin = min
 	b.config.WorldMax = max
 	return b
 }
 
-// WithRestitution imposta il coefficiente di restituzione
+// WithRestitution sets the coefficient of restitution
 func (b *SimulationBuilder) WithRestitution(restitution float64) *SimulationBuilder {
 	b.config.Restitution = restitution
 	return b
 }
 
-// WithIntegratorType imposta il tipo di integratore
+// WithIntegratorType sets the integrator type
 func (b *SimulationBuilder) WithIntegratorType(integratorType string) *SimulationBuilder {
 	b.config.IntegratorType = integratorType
 	return b
 }
 
-// Build restituisce la configurazione
+// Build returns the configuration
 func (b *SimulationBuilder) Build() *Config {
 	return b.config
 }

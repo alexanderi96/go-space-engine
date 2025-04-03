@@ -1,4 +1,4 @@
-// Package main fornisce un esempio di utilizzo di G3N con il motore fisico tramite adapter diretto
+// Package main provides an example of using G3N with the physics engine via direct adapter
 package main
 
 import (
@@ -19,18 +19,18 @@ import (
 )
 
 func main() {
-	log.Println("Inizializzazione dell'esempio G3N Physics con Adapter Diretto")
+	log.Println("Initializing G3N Physics example with Direct Adapter")
 
-	// Inizializza il generatore di numeri casuali
+	// Initialize the random number generator
 	rand.Seed(time.Now().UnixNano())
 
-	// Crea la configurazione della simulazione
+	// Create the simulation configuration
 	cfg := config.NewSimulationBuilder().
 		WithTimeStep(0.01).
 		WithMaxBodies(1000).
 		WithGravity(true).
 		WithCollisions(true).
-		WithBoundaryCollisions(false). // Disabilitiamo le collisioni con i bordi
+		WithBoundaryCollisions(false). // We disable collisions with the boundaries
 		WithWorldBounds(
 			vector.NewVector3(-500, -500, -500),
 			vector.NewVector3(500, 500, 500),
@@ -38,115 +38,115 @@ func main() {
 		WithOctreeConfig(10, 8).
 		Build()
 
-	// Crea il mondo della simulazione
+	// Create the simulation world
 	w := world.NewPhysicalWorld(cfg.GetWorldBounds())
 
-	// Aggiungi la forza gravitazionale
+	// Add the gravitational force
 	gravityForce := force.NewGravitationalForce()
-	gravityForce.SetTheta(0.5) // Imposta il valore di theta per l'algoritmo Barnes-Hut
+	gravityForce.SetTheta(0.5) // Set the theta value for the Barnes-Hut algorithm
 	w.AddForce(gravityForce)
 
-	// Crea alcuni corpi
+	// Create some bodies
 	createBodies(w)
 
-	// Crea l'adapter G3N diretto
+	// Create the direct G3N adapter
 	adapter := g3n.NewG3NAdapter()
 
-	// Configura l'adapter
-	adapter.SetBackgroundColor(g3n.NewColor(1.0, 1.0, 1.0, 1.0)) // Sfondo blu molto scuro per lo spazio
+	// Configure the adapter
+	adapter.SetBackgroundColor(g3n.NewColor(1.0, 1.0, 1.0, 1.0)) // White background
 
-	// Variabili per il timing
+	// Variables for timing
 	lastUpdateTime := time.Now()
 
-	// Avvia il loop di rendering
+	// Start the rendering loop
 	adapter.Run(func(deltaTime time.Duration) {
-		// Calcola il delta time
+		// Calculate the delta time
 		currentTime := time.Now()
 		dt := currentTime.Sub(lastUpdateTime).Seconds()
 		lastUpdateTime = currentTime
 
-		// Limita il delta time per evitare instabilità
+		// Limit the delta time to avoid instability
 		if dt > 0.1 {
 			dt = 0.1
 		}
 
-		// Esegui un passo della simulazione
+		// Execute a simulation step
 		w.Step(dt)
 
-		// Renderizza il mondo
+		// Render the world
 		adapter.RenderWorld(w)
 	})
 
-	log.Println("Esempio completato")
+	log.Println("Example completed")
 }
 
-// createBodies crea alcuni corpi nel mondo
+// createBodies creates some bodies in the world
 func createBodies(w world.World) {
 	create3BodySystem(w)
 }
 
-// create3BodySystem crea un sistema stabile di tre corpi con masse uguali
+// create3BodySystem creates a stable system of three bodies with equal masses
 func create3BodySystem(w world.World) {
-	// Massa uguale per tutti i corpi
+	// Equal mass for all bodies
 	mass := 1.0e14
-	log.Printf("Massa di ciascun corpo: %e kg", mass)
+	log.Printf("Mass of each body: %e kg", mass)
 
-	// Raggio dell'orbita
+	// Orbit radius
 	radius := 10.0
 
-	// Colori per i tre corpi
+	// Colors for the three bodies
 	colors := [][3]float64{
-		{1.0, 0.3, 0.3}, // Rosso
-		{0.3, 1.0, 0.3}, // Verde
-		{0.3, 0.3, 1.0}, // Blu
+		{1.0, 0.3, 0.3}, // Red
+		{0.3, 1.0, 0.3}, // Green
+		{0.3, 0.3, 1.0}, // Blue
 	}
 
-	// Nomi dei corpi
-	names := []string{"Corpo1", "Corpo2", "Corpo3"}
+	// Names of the bodies
+	names := []string{"Body1", "Body2", "Body3"}
 
-	// Calcola la velocità orbitale necessaria per un'orbita stabile
-	// Per un sistema a tre corpi con masse uguali in configurazione triangolare equilatera
-	// La formula corretta è v = sqrt(G*M/r)
+	// Calculate the orbital velocity needed for a stable orbit
+	// For a three-body system with equal masses in an equilateral triangular configuration
+	// The correct formula is v = sqrt(G*M/r)
 	orbitSpeed := math.Sqrt(constants.G * mass / radius)
 
-	// Applica un fattore di scala per rallentare ulteriormente il movimento
-	// e rendere la simulazione più visivamente piacevole
+	// Apply a scale factor to further slow down the movement
+	// and make the simulation more visually pleasing
 	orbitSpeed *= 0.1
 
-	// Crea i tre corpi posizionati ai vertici di un triangolo equilatero
+	// Create the three bodies positioned at the vertices of an equilateral triangle
 	for i := 0; i < 3; i++ {
-		// Calcola l'angolo per questo corpo (120 gradi di distanza l'uno dall'altro)
+		// Calculate the angle for this body (120 degrees apart from each other)
 		angle := float64(i) * (2.0 * math.Pi / 3.0)
 
-		// Calcola la posizione (vertici di un triangolo equilatero)
+		// Calculate the position (vertices of an equilateral triangle)
 		position := vector.NewVector3(
 			radius*math.Cos(angle),
 			0,
 			radius*math.Sin(angle),
 		)
 
-		// Calcola la velocità (perpendicolare alla posizione per un'orbita circolare)
+		// Calculate the velocity (perpendicular to the position for a circular orbit)
 		velocity := vector.NewVector3(
 			-orbitSpeed*math.Sin(angle),
 			0,
 			orbitSpeed*math.Cos(angle),
 		)
 
-		// Crea il corpo
+		// Create the body
 		b := body.NewRigidBody(
 			units.NewQuantity(mass, units.Kilogram),
-			units.NewQuantity(2.0, units.Meter), // Raggio del corpo
+			units.NewQuantity(2.0, units.Meter), // Body radius
 			position,
 			velocity,
 			createMaterial(names[i], 0.9, 0.5, colors[i]),
 		)
 
 		w.AddBody(b)
-		log.Printf("%s creato: ID=%v, Posizione=%v, Velocità=%v", names[i], b.ID(), b.Position(), b.Velocity())
+		log.Printf("%s created: ID=%v, Position=%v, Velocity=%v", names[i], b.ID(), b.Position(), b.Velocity())
 	}
 }
 
-// createMaterial crea un materiale personalizzato
+// createMaterial creates a custom material
 func createMaterial(name string, emissivity, elasticity float64, color [3]float64) physMaterial.Material {
 	return physMaterial.NewBasicMaterial(
 		name,

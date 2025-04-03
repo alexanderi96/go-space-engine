@@ -1,4 +1,4 @@
-// Package g3n fornisce un'implementazione dell'interfaccia RenderAdapter utilizzando G3N
+// Package g3n provides an implementation of the RenderAdapter interface using G3N
 package g3n
 
 import (
@@ -22,13 +22,13 @@ import (
 	"github.com/g3n/engine/window"
 )
 
-// BodyMesh rappresenta un mesh con una luce puntuale associata
+// BodyMesh represents a mesh with an associated point light
 type BodyMesh struct {
 	Mesh  *graphic.Mesh
 	Light *light.Point
 }
 
-// G3NAdapter è un adattatore per il rendering con G3N
+// G3NAdapter is an adapter for rendering with G3N
 type G3NAdapter struct {
 	app        *app.Application
 	scene      *core.Node
@@ -39,25 +39,25 @@ type G3NAdapter struct {
 	debugMode  bool
 }
 
-// NewG3NAdapter crea un nuovo adattatore G3N
+// NewG3NAdapter creates a new G3N adapter
 func NewG3NAdapter() *G3NAdapter {
 	return &G3NAdapter{
 		bodyMeshes: make(map[uuid.UUID]*BodyMesh),
-		bgColor:    adapter.NewColor(1.0, 1.0, 1.0, 1.0), // Sfondo bianco
+		bgColor:    adapter.NewColor(1.0, 1.0, 1.0, 1.0), // White background
 		debugMode:  false,
 	}
 }
 
-// GetRenderer restituisce il renderer (implementazione dell'interfaccia RenderAdapter)
+// GetRenderer returns the renderer (implementation of the RenderAdapter interface)
 func (ga *G3NAdapter) GetRenderer() adapter.Renderer {
-	// Questo adapter non utilizza l'interfaccia Renderer standard
-	// Restituisce nil perché implementa direttamente i metodi necessari
+	// This adapter does not use the standard Renderer interface
+	// Returns nil because it directly implements the necessary methods
 	return nil
 }
 
-// RenderWorld renderizza il mondo
+// RenderWorld renders the world
 func (ga *G3NAdapter) RenderWorld(w world.World) {
-	// Aggiorna la posizione dei mesh
+	// Update the position of meshes
 	for _, b := range w.GetBodies() {
 		if bodyMesh, exists := ga.bodyMeshes[b.ID()]; exists {
 			pos := b.Position()
@@ -66,73 +66,73 @@ func (ga *G3NAdapter) RenderWorld(w world.World) {
 				bodyMesh.Light.SetPosition(float32(pos.X()), float32(pos.Y()), float32(pos.Z()))
 			}
 		} else {
-			// Se il corpo non ha un mesh associato, crealo
+			// If the body does not have an associated mesh, create it
 			ga.createMeshForBody(b)
 		}
 	}
 }
 
-// Run avvia il loop di rendering
+// Run starts the rendering loop
 func (ga *G3NAdapter) Run(updateFunc func(deltaTime time.Duration)) {
-	// Inizializza l'applicazione G3N se non è già stata inizializzata
+	// Initialize the G3N application if it has not already been initialized
 	if ga.app == nil {
 		ga.initialize()
 	}
 
-	// Avvia il loop di rendering
+	// Start the rendering loop
 	ga.app.Run(func(renderer *renderer.Renderer, deltaTime time.Duration) {
-		// Operazioni OpenGL esplicite
+		// Explicit OpenGL operations
 		gl := ga.app.Gls()
 		gl.Clear(gls.DEPTH_BUFFER_BIT | gls.STENCIL_BUFFER_BIT | gls.COLOR_BUFFER_BIT)
 		gl.Enable(gls.DEPTH_TEST)
 
-		// Chiama la funzione di aggiornamento fornita
+		// Call the provided update function
 		if updateFunc != nil {
 			updateFunc(deltaTime)
 		}
 
-		// Renderizza la scena
+		// Render the scene
 		renderer.Render(ga.scene, ga.camera)
 
-		// Disabilita il depth testing dopo il rendering
+		// Disable depth testing after rendering
 		gl.Disable(gls.DEPTH_TEST)
 	})
 }
 
-// initialize inizializza l'adapter
+// initialize initializes the adapter
 func (ga *G3NAdapter) initialize() {
-	// Crea l'applicazione G3N
+	// Create the G3N application
 	ga.app = app.App()
 
-	// Crea la scena
+	// Create the scene
 	ga.scene = core.NewNode()
 
-	// Crea la camera
+	// Create the camera
 	ga.camera = camera.New(1)
 	ga.camera.SetPosition(0, 50, 150)
 	ga.camera.LookAt(&math32.Vector3{0, 0, 0}, &math32.Vector3{0, 1, 0})
 	ga.scene.Add(ga.camera)
 
-	// Crea il controllo orbitale della camera
+	// Create the orbital camera control
 	ga.cameraCtrl = camera.NewOrbitControl(ga.camera)
 
-	// Imposta il colore di sfondo
+	// Set the background color
 	ga.app.Gls().ClearColor(float32(ga.bgColor.R), float32(ga.bgColor.G), float32(ga.bgColor.B), float32(ga.bgColor.A))
 
-	// Aggiungi un gestore per il ridimensionamento della finestra
+	// Add a handler for window resizing
 	ga.app.Subscribe(window.OnWindowSize, ga.onWindowResize)
 
-	// Imposta l'aspect ratio iniziale della camera
+	// Set the initial aspect ratio of the camera
 	width, height := ga.app.GetSize()
 	aspect := float32(width) / float32(height)
 	ga.camera.SetAspect(aspect)
 
-	// Aggiungi luci
-	// Luce ambientale più tenue per un effetto spaziale
+	// Add lights
+	// Softer ambient light for a space effect
 	ambLight := light.NewAmbient(&math32.Color{0.3, 0.3, 0.4}, 0.5)
 	ga.scene.Add(ambLight)
 
-	// Luci puntuali più intense e distanti per illuminare l'intero sistema solare
+	// More intense and distant point lights to illuminate the entire solar system
 	pointLight1 := light.NewPoint(&math32.Color{1, 1, 1}, 5.0)
 	pointLight1.SetPosition(50, 50, 50)
 	pointLight1.SetLinearDecay(0.1)
@@ -151,40 +151,40 @@ func (ga *G3NAdapter) initialize() {
 	pointLight3.SetQuadraticDecay(0.01)
 	ga.scene.Add(pointLight3)
 
-	// Crea gli assi
-	// Rimuoviamo gli assi e la griglia per una visualizzazione più pulita del sistema solare
+	// Create axes
+	// We remove the axes and grid for a cleaner visualization of the solar system
 }
 
-// createMeshForBody crea un mesh per un corpo fisico
+// createMeshForBody creates a mesh for a physical body
 func (ga *G3NAdapter) createMeshForBody(b body.Body) {
-	// Crea una sfera per rappresentare il corpo
+	// Create a sphere to represent the body
 	radius := float32(b.Radius().Value())
 
-	// Aumenta la qualità delle sfere per i corpi più grandi
+	// Increase the quality of spheres for larger bodies
 	var segments, rings int
 	if radius > 1.5 {
-		segments, rings = 64, 32 // Alta qualità per pianeti grandi
+		segments, rings = 64, 32 // High quality for large planets
 	} else if radius > 0.8 {
-		segments, rings = 48, 24 // Media qualità per pianeti medi
+		segments, rings = 48, 24 // Medium quality for medium planets
 	} else {
-		segments, rings = 32, 16 // Qualità standard per corpi piccoli
+		segments, rings = 32, 16 // Standard quality for small bodies
 	}
 
 	geom := geometry.NewSphere(float64(radius), segments, rings)
 
-	// Crea un materiale in base al materiale del corpo fisico
+	// Create a material based on the physical body's material
 	var mat material.IMaterial
 	var bodyColor math32.Color
 
-	// Determina il colore del corpo
+	// Determine the color of the body
 	if b.Material() != nil {
-		// Qui dovresti mappare il materiale fisico a un colore G3N
-		// Per semplicità, usiamo un colore predefinito per ogni tipo di materiale
+		// Here you should map the physical material to a G3N color
+		// For simplicity, we use a predefined color for each type of material
 		switch b.Material().Name() {
 		case "Sun":
-			// Materiale speciale per il sole con emissione
+			// Special material for the sun with emission
 			bodyColor = math32.Color{1.0, 0.8, 0.0}
-			// Creiamo un colore di emissione più intenso per simulare la luminosità del sole
+			// Create a more intense emission color to simulate the brightness of the sun
 			emissiveColor := math32.Color{1.0, 0.9, 0.5}
 			sunMat := material.NewStandard(&bodyColor)
 			sunMat.SetEmissiveColor(&emissiveColor)
@@ -215,7 +215,7 @@ func (ga *G3NAdapter) createMeshForBody(b body.Body) {
 		case "Neptune":
 			bodyColor = math32.Color{0.0, 0.0, 0.8}
 		default:
-			// Colore casuale basato sull'ID del corpo (che è una stringa)
+			// Random color based on the body's ID (which is a string)
 			id := b.ID()
 			hash := 0
 			for i := 0; i < len(id); i++ {
@@ -230,7 +230,7 @@ func (ga *G3NAdapter) createMeshForBody(b body.Body) {
 			bodyColor = math32.Color{r, g, b}
 		}
 
-		// Se il materiale non è già stato creato (come per il sole)
+		// If the material has not already been created (as for the sun)
 		if mat == nil {
 			standardMat := material.NewStandard(&bodyColor)
 			standardMat.SetShininess(30)
@@ -241,28 +241,28 @@ func (ga *G3NAdapter) createMeshForBody(b body.Body) {
 		mat = material.NewStandard(&bodyColor)
 	}
 
-	// Crea un mesh con la geometria e il materiale
+	// Create a mesh with the geometry and material
 	mesh := graphic.NewMesh(geom, mat)
 
-	// Imposta la posizione del mesh
+	// Set the position of the mesh
 	pos := b.Position()
 	mesh.SetPosition(float32(pos.X()), float32(pos.Y()), float32(pos.Z()))
 
-	// Crea una luce puntuale per il corpo solo se è abbastanza grande
+	// Create a point light for the body only if it is large enough
 	var bodyLight *light.Point
 	if radius > 0.5 || b.Material().Name() == "Sun" {
-		// Intensità della luce proporzionale alla dimensione del corpo
+		// Light intensity proportional to the size of the body
 		lightIntensity := float32(0.5)
 		if b.Material().Name() == "Sun" {
-			lightIntensity = 5.0 // Il sole è molto più luminoso
+			lightIntensity = 5.0 // The sun is much brighter
 		} else if radius > 1.5 {
-			lightIntensity = 1.0 // Pianeti grandi sono più luminosi
+			lightIntensity = 1.0 // Large planets are brighter
 		}
 
 		bodyLight = light.NewPoint(&bodyColor, lightIntensity)
 		bodyLight.SetPosition(float32(pos.X()), float32(pos.Y()), float32(pos.Z()))
 
-		// Decadimento della luce più graduale per il sole
+		// More gradual light decay for the sun
 		if b.Material().Name() == "Sun" {
 			bodyLight.SetLinearDecay(0.05)
 			bodyLight.SetQuadraticDecay(0.005)
@@ -274,77 +274,77 @@ func (ga *G3NAdapter) createMeshForBody(b body.Body) {
 		ga.scene.Add(bodyLight)
 	}
 
-	// Aggiungi il mesh alla scena
+	// Add the mesh to the scene
 	ga.scene.Add(mesh)
 
-	// Memorizza il BodyMesh nella mappa
+	// Store the BodyMesh in the map
 	ga.bodyMeshes[b.ID()] = &BodyMesh{
 		Mesh:  mesh,
 		Light: bodyLight,
 	}
 }
 
-// SetDebugMode imposta la modalità di debug
+// SetDebugMode sets the debug mode
 func (ga *G3NAdapter) SetDebugMode(debug bool) {
 	ga.debugMode = debug
 }
 
-// IsDebugMode restituisce true se la modalità di debug è attiva
+// IsDebugMode returns true if debug mode is active
 func (ga *G3NAdapter) IsDebugMode() bool {
 	return ga.debugMode
 }
 
-// SetRenderOctree imposta se renderizzare l'octree
+// SetRenderOctree sets whether to render the octree
 func (ga *G3NAdapter) SetRenderOctree(render bool) {
-	// Non implementato in questo adapter
+	// Not implemented in this adapter
 }
 
-// IsRenderOctree restituisce true se l'octree viene renderizzato
+// IsRenderOctree returns true if the octree is being rendered
 func (ga *G3NAdapter) IsRenderOctree() bool {
 	return false
 }
 
-// SetRenderBoundingBoxes imposta se renderizzare i bounding box
+// SetRenderBoundingBoxes sets whether to render bounding boxes
 func (ga *G3NAdapter) SetRenderBoundingBoxes(render bool) {
-	// Non implementato in questo adapter
+	// Not implemented in this adapter
 }
 
-// IsRenderBoundingBoxes restituisce true se i bounding box vengono renderizzati
+// IsRenderBoundingBoxes returns true if bounding boxes are being rendered
 func (ga *G3NAdapter) IsRenderBoundingBoxes() bool {
 	return false
 }
 
-// SetRenderVelocities imposta se renderizzare i vettori velocità
+// SetRenderVelocities sets whether to render velocity vectors
 func (ga *G3NAdapter) SetRenderVelocities(render bool) {
-	// Non implementato in questo adapter
+	// Not implemented in this adapter
 }
 
-// IsRenderVelocities restituisce true se i vettori velocità vengono renderizzati
+// IsRenderVelocities returns true if velocity vectors are being rendered
 func (ga *G3NAdapter) IsRenderVelocities() bool {
 	return false
 }
 
-// SetRenderAccelerations imposta se renderizzare i vettori accelerazione
+// SetRenderAccelerations sets whether to render acceleration vectors
 func (ga *G3NAdapter) SetRenderAccelerations(render bool) {
-	// Non implementato in questo adapter
+	// Not implemented in this adapter
 }
 
-// IsRenderAccelerations restituisce true se i vettori accelerazione vengono renderizzati
+// IsRenderAccelerations returns true if acceleration vectors are being rendered
 func (ga *G3NAdapter) IsRenderAccelerations() bool {
 	return false
 }
 
-// SetRenderForces imposta se renderizzare i vettori forza
+// SetRenderForces sets whether to render force vectors
 func (ga *G3NAdapter) SetRenderForces(render bool) {
-	// Non implementato in questo adapter
+	// Not implemented in this adapter
 }
 
-// IsRenderForces restituisce true se i vettori forza vengono renderizzati
+// IsRenderForces returns true if force vectors are being rendered
 func (ga *G3NAdapter) IsRenderForces() bool {
 	return false
 }
 
-// SetBackgroundColor imposta il colore di sfondo
+// SetBackgroundColor sets the background color
 func (ga *G3NAdapter) SetBackgroundColor(color adapter.Color) {
 	ga.bgColor = color
 	if ga.app != nil {
@@ -352,21 +352,21 @@ func (ga *G3NAdapter) SetBackgroundColor(color adapter.Color) {
 	}
 }
 
-// NewColor crea un nuovo colore
+// NewColor creates a new color
 func NewColor(r, g, b, a float64) adapter.Color {
 	return adapter.NewColor(r, g, b, a)
 }
 
-// onWindowResize gestisce il ridimensionamento della finestra
+// onWindowResize handles window resizing
 func (ga *G3NAdapter) onWindowResize(evname string, ev interface{}) {
-	// Ottieni le nuove dimensioni della finestra
+	// Get the new window dimensions
 	width, height := ga.app.GetSize()
 
-	// Aggiorna l'aspect ratio della camera
+	// Update the camera's aspect ratio
 	aspect := float32(width) / float32(height)
 	ga.camera.SetAspect(aspect)
 
-	// Imposta esplicitamente il viewport utilizzando l'API OpenGL
+	// Explicitly set the viewport using the OpenGL API
 	gl := ga.app.Gls()
 	gl.Viewport(0, 0, int32(width), int32(height))
 }
