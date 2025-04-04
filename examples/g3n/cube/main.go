@@ -78,7 +78,7 @@ func main() {
 	adapter := g3n.NewG3NAdapter()
 
 	// Configure the adapter
-	adapter.SetBackgroundColor(g3n.NewColor(0.0, 0.0, 0.05, 1.0)) // Very dark blue background for space
+	adapter.SetBackgroundColor(g3n.NewColor(1.0, 1.0, 1.0, 1.0)) // Very dark blue background for space
 
 	// Variables for timing
 	lastUpdateTime := time.Now()
@@ -96,7 +96,7 @@ func main() {
 		}
 
 		// Execute a simulation step
-		w.Step(0.01)
+		w.Step(dt)
 
 		// Render the world
 		adapter.RenderWorld(w)

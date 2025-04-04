@@ -7,7 +7,6 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/alexanderi96/go-space-engine/core/constants"
 	"github.com/alexanderi96/go-space-engine/core/units"
 	"github.com/alexanderi96/go-space-engine/core/vector"
 	"github.com/alexanderi96/go-space-engine/physics/body"
@@ -20,9 +19,6 @@ import (
 
 func main() {
 	log.Println("Initializing G3N Physics example with Direct Adapter")
-
-	// Inizializza il generatore di numeri casuali
-	rand.Seed(time.Now().UnixNano())
 
 	// Crea la configurazione della simulazione
 	cfg := config.NewSimulationBuilder().
@@ -53,7 +49,7 @@ func main() {
 	adapter := g3n.NewG3NAdapter()
 
 	// Configura l'adapter
-	adapter.SetBackgroundColor(g3n.NewColor(0.0, 0.0, 0.1, 1.0)) // Dark blue background for space
+	adapter.SetBackgroundColor(g3n.NewColor(0.2, 0.2, 0.2, 1.0)) // Dark blue background for space
 
 	// Variabili per il timing
 	lastUpdateTime := time.Now()
@@ -92,7 +88,7 @@ func createSolarSystem(w world.World) {
 
 	// Massa fissa del sole - valore elevato per garantire orbite stabili
 	// In una simulazione, i rapporti relativi sono più importanti dei valori assoluti
-	solarMass := 2e12 // Simplified value
+	solarMass := 1e11 // Simplified value
 
 	log.Printf("Massa del sole: %e kg", solarMass)
 
@@ -138,18 +134,14 @@ func createSolarSystem(w world.World) {
 
 	// Crea ogni pianeta
 	for i := 0; i < len(names); i++ {
-		// Calculate the orbital velocity using the correct formula: v = sqrt(G*M/r)
-		// Where G is the gravitational constant, M is the mass of the sun, r is the distance
-		orbitSpeed := math.Sqrt(constants.G*solarMass/distances[i]) - 2
-
-		// Crea il pianeta
+		// Crea il pianeta - la velocità orbitale verrà calcolata all'interno della funzione
 		createPlanet(
 			w,
 			names[i],                   // Nome
 			solarMass*massFractions[i], // Massa
 			radii[i],                   // Raggio
 			distances[i],               // Distanza
-			orbitSpeed,                 // Velocità orbitale calcolata
+			solarMass,                  // Massa dell'oggetto centrale (sole)
 			vector.NewVector3(0, 1, 0), // Piano dell'orbita
 			colors[i],                  // Colore
 		)
@@ -157,12 +149,15 @@ func createSolarSystem(w world.World) {
 
 	// Create an asteroid belt
 	log.Println("Creating the asteroid belt")
-	createAsteroidBelt(w, 200, solarMass, 60.0, 80.0)
+	createAsteroidBelt(w, 200, solarMass, 60.0, 80.0) // Passiamo la massa solare come massa centrale
 }
 
 // createPlanet creates a planet
-func createPlanet(w world.World, name string, mass, radius, distance, speed float64, orbitPlane vector.Vector3, color [3]float64) body.Body {
-	log.Printf("Creating planet %s: distance=%f, radius=%f, speed=%f", name, distance, radius, speed)
+func createPlanet(w world.World, name string, mass, radius, distance, centralMass float64, orbitPlane vector.Vector3, color [3]float64) body.Body {
+	// Calcola la velocità orbitale usando la funzione agnostica del package force
+	orbitSpeed := force.CalculateOrbitalVelocity(centralMass, distance)
+
+	log.Printf("Creating planet %s: distance=%f, radius=%f, calculated orbit speed=%f", name, distance, radius, orbitSpeed)
 
 	// Random angle for the initial position (to distribute planets around the sun)
 	angle := rand.Float64() * 2 * math.Pi
@@ -177,9 +172,9 @@ func createPlanet(w world.World, name string, mass, radius, distance, speed floa
 	// Calculate the orbital velocity (perpendicular to the position)
 	// This is the key for stable orbits: velocity must be perpendicular to the radius
 	velocity := vector.NewVector3(
-		-speed*math.Sin(angle), // Componente x
-		0,                      // Componente y (piano xy)
-		speed*math.Cos(angle),  // Componente z
+		-orbitSpeed*math.Sin(angle), // Componente x
+		0,                           // Componente y (piano xy)
+		orbitSpeed*math.Cos(angle),  // Componente z
 	)
 
 	// Create the planet
@@ -199,7 +194,7 @@ func createPlanet(w world.World, name string, mass, radius, distance, speed floa
 }
 
 // createAsteroidBelt creates an asteroid belt
-func createAsteroidBelt(w world.World, count int, solarMass, minDistance, maxDistance float64) {
+func createAsteroidBelt(w world.World, count int, centralMass, minDistance, maxDistance float64) {
 	log.Printf("Creating %d asteroids", count)
 
 	for i := 0; i < count; i++ {
@@ -213,11 +208,11 @@ func createAsteroidBelt(w world.World, count int, solarMass, minDistance, maxDis
 
 		position := vector.NewVector3(x, y, z)
 
-		// Calculate the correct orbital velocity: v = sqrt(G*M/r)
-		baseSpeed := math.Sqrt(constants.G * solarMass / distance)
+		// Calculate the orbital velocity using the agnostic function from the force package
+		baseSpeed := force.CalculateOrbitalVelocity(centralMass, distance)
 
 		// Add a small random variation to the velocity
-		speed := baseSpeed * (0.95 + rand.Float64()*0.1) // 95-105% of the base speed
+		speed := baseSpeed //* (0.95 + rand.Float64()*0.1) // 95-105% of the base speed
 
 		// The velocity must be perpendicular to the radius for a circular orbit
 		// For an asteroid with y-axis ≠ 0, we need to calculate the perpendicular vector correctly

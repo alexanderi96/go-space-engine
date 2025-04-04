@@ -4,10 +4,8 @@ package main
 import (
 	"log"
 	"math"
-	"math/rand"
 	"time"
 
-	"github.com/alexanderi96/go-space-engine/core/constants"
 	"github.com/alexanderi96/go-space-engine/core/units"
 	"github.com/alexanderi96/go-space-engine/core/vector"
 	"github.com/alexanderi96/go-space-engine/physics/body"
@@ -21,16 +19,13 @@ import (
 func main() {
 	log.Println("Initializing G3N Physics example with Direct Adapter")
 
-	// Initialize the random number generator
-	rand.Seed(time.Now().UnixNano())
-
 	// Create the simulation configuration
 	cfg := config.NewSimulationBuilder().
 		WithTimeStep(0.01).
 		WithMaxBodies(1000).
 		WithGravity(true).
 		WithCollisions(true).
-		WithBoundaryCollisions(false). // We disable collisions with the boundaries
+		WithBoundaryCollisions(true). // We disable collisions with the boundaries
 		WithWorldBounds(
 			vector.NewVector3(-500, -500, -500),
 			vector.NewVector3(500, 500, 500),
@@ -106,8 +101,8 @@ func create3BodySystem(w world.World) {
 
 	// Calculate the orbital velocity needed for a stable orbit
 	// For a three-body system with equal masses in an equilateral triangular configuration
-	// The correct formula is v = sqrt(G*M/r)
-	orbitSpeed := math.Sqrt(constants.G * mass / radius)
+	// Using our agnostic orbital velocity calculation function
+	orbitSpeed := force.CalculateOrbitalVelocity(mass, radius)
 
 	// Apply a scale factor to further slow down the movement
 	// and make the simulation more visually pleasing

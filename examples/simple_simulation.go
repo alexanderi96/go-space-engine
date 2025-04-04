@@ -91,8 +91,16 @@ func createPlanet(w world.World, distance, radius, speed float64, orbitPlane vec
 	// Calculate the initial position
 	position := vector.NewVector3(distance, 0, 0)
 
-	// Calculate the orbital velocity (perpendicular to position)
-	velocity := orbitPlane.Cross(position).Normalize().Scale(speed)
+	// Get the central body mass (sun)
+	// In a real scenario, we would get this from the world or pass it as a parameter
+	centralMass := 1.0e6 // This matches the sun's mass defined in createBodies
+
+	// Calculate the orbital velocity using our agnostic function
+	// The speed parameter is used as a scaling factor to adjust the calculated velocity
+	orbitalSpeed := force.CalculateOrbitalVelocity(centralMass, distance) * speed
+
+	// Calculate the orbital velocity vector (perpendicular to position)
+	velocity := orbitPlane.Cross(position).Normalize().Scale(orbitalSpeed)
 
 	// Create the planet
 	planet := body.NewRigidBody(
@@ -120,11 +128,17 @@ func createMoon(w world.World, planetDistance, planetRadius, moonDistance, moonR
 	// Calculate the absolute position of the moon
 	moonPosition := planetPosition.Add(moonRelativePosition)
 
-	// Calculate the orbital velocity of the planet
-	planetVelocity := orbitPlane.Cross(planetPosition).Normalize().Scale(math.Sqrt(1.0 / planetDistance))
+	// Get the central body mass (sun) and planet mass
+	centralMass := 1.0e6 // Sun's mass
+	planetMass := 1000.0 // Planet's mass
 
-	// Calculate the orbital velocity of the moon relative to the planet
-	moonRelativeVelocity := orbitPlane.Cross(moonRelativePosition).Normalize().Scale(math.Sqrt(10.0 / moonDistance))
+	// Calculate the orbital velocity of the planet around the sun
+	planetOrbitalSpeed := force.CalculateOrbitalVelocity(centralMass, planetDistance)
+	planetVelocity := orbitPlane.Cross(planetPosition).Normalize().Scale(planetOrbitalSpeed)
+
+	// Calculate the orbital velocity of the moon around the planet
+	moonOrbitalSpeed := force.CalculateOrbitalVelocity(planetMass, moonDistance)
+	moonRelativeVelocity := orbitPlane.Cross(moonRelativePosition).Normalize().Scale(moonOrbitalSpeed)
 
 	// Calculate the absolute velocity of the moon
 	moonVelocity := planetVelocity.Add(moonRelativeVelocity)
@@ -144,7 +158,7 @@ func createMoon(w world.World, planetDistance, planetRadius, moonDistance, moonR
 	return moon
 }
 
-// runSimulation runs the simulation
+// runSimulation runs the simulation with CCD enabled
 func runSimulation(w world.World, cfg *config.Config) {
 	// Simulation parameters
 	timeStep := cfg.TimeStep
