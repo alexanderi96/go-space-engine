@@ -4,6 +4,7 @@ package g3n
 import (
 	"time"
 
+	"github.com/alexanderi96/go-space-engine/entity/input"
 	"github.com/alexanderi96/go-space-engine/physics/body"
 	"github.com/alexanderi96/go-space-engine/render/adapter"
 	"github.com/alexanderi96/go-space-engine/simulation/world"
@@ -22,6 +23,11 @@ import (
 	"github.com/g3n/engine/window"
 )
 
+// NewColor creates a new color
+func NewColor(r, g, b, a float64) adapter.Color {
+	return adapter.NewColor(r, g, b, a)
+}
+
 // BodyMesh represents a mesh with an associated point light
 type BodyMesh struct {
 	Mesh  *graphic.Mesh
@@ -30,21 +36,23 @@ type BodyMesh struct {
 
 // G3NAdapter is an adapter for rendering with G3N
 type G3NAdapter struct {
-	app        *app.Application
-	scene      *core.Node
-	camera     *camera.Camera
-	cameraCtrl *camera.OrbitControl
-	bodyMeshes map[uuid.UUID]*BodyMesh
-	bgColor    adapter.Color
-	debugMode  bool
+	app          *app.Application
+	scene        *core.Node
+	camera       *camera.Camera
+	cameraCtrl   *camera.OrbitControl
+	bodyMeshes   map[uuid.UUID]*BodyMesh
+	bgColor      adapter.Color
+	debugMode    bool
+	inputManager *input.InputManager
 }
 
 // NewG3NAdapter creates a new G3N adapter
 func NewG3NAdapter() *G3NAdapter {
 	return &G3NAdapter{
-		bodyMeshes: make(map[uuid.UUID]*BodyMesh),
-		bgColor:    adapter.NewColor(1.0, 1.0, 1.0, 1.0), // White background
-		debugMode:  false,
+		bodyMeshes:   make(map[uuid.UUID]*BodyMesh),
+		bgColor:      adapter.NewColor(1.0, 1.0, 1.0, 1.0), // White background
+		debugMode:    false,
+		inputManager: input.NewInputManager(),
 	}
 }
 
@@ -53,6 +61,11 @@ func (ga *G3NAdapter) GetRenderer() adapter.Renderer {
 	// This adapter does not use the standard Renderer interface
 	// Returns nil because it directly implements the necessary methods
 	return nil
+}
+
+// GetCamera returns the camera used by the adapter
+func (ga *G3NAdapter) GetCamera() *camera.Camera {
+	return ga.camera
 }
 
 // RenderWorld renders the world
@@ -122,6 +135,9 @@ func (ga *G3NAdapter) initialize() {
 	// Add a handler for window resizing
 	ga.app.Subscribe(window.OnWindowSize, ga.onWindowResize)
 
+	// Configura la gestione degli input
+	ga.setupInputHandling()
+
 	// Set the initial aspect ratio of the camera
 	width, height := ga.app.GetSize()
 	aspect := float32(width) / float32(height)
@@ -157,20 +173,30 @@ func (ga *G3NAdapter) initialize() {
 
 // createMeshForBody creates a mesh for a physical body
 func (ga *G3NAdapter) createMeshForBody(b body.Body) {
-	// Create a sphere to represent the body
+	// Get the radius of the body
 	radius := float32(b.Radius().Value())
 
-	// Increase the quality of spheres for larger bodies
-	var segments, rings int
-	if radius > 1.5 {
-		segments, rings = 64, 32 // High quality for large planets
-	} else if radius > 0.8 {
-		segments, rings = 48, 24 // Medium quality for medium planets
-	} else {
-		segments, rings = 32, 16 // Standard quality for small bodies
-	}
+	// Create geometry based on the body type
+	var geom geometry.IGeometry
 
-	geom := geometry.NewSphere(float64(radius), segments, rings)
+	// Check if this is a spacecraft (should be rendered as a cube)
+	if b.Material() != nil && b.Material().Name() == "Spacecraft" {
+		// Create a cube for the spacecraft
+		size := float32(radius * 2) // Use diameter as cube size
+		geom = geometry.NewBox(size, size, size)
+	} else {
+		// For other bodies, create a sphere with appropriate quality
+		var segments, rings int
+		if radius > 1.5 {
+			segments, rings = 64, 32 // High quality for large planets
+		} else if radius > 0.8 {
+			segments, rings = 48, 24 // Medium quality for medium planets
+		} else {
+			segments, rings = 32, 16 // Standard quality for small bodies
+		}
+
+		geom = geometry.NewSphere(float64(radius), segments, rings)
+	}
 
 	// Create a material based on the physical body's material
 	var mat material.IMaterial
@@ -181,6 +207,9 @@ func (ga *G3NAdapter) createMeshForBody(b body.Body) {
 		// Here you should map the physical material to a G3N color
 		// For simplicity, we use a predefined color for each type of material
 		switch b.Material().Name() {
+		case "Spacecraft":
+			// White color for spacecraft
+			bodyColor = math32.Color{1.0, 1.0, 1.0}
 		case "Sun":
 			// Special material for the sun with emission
 			bodyColor = math32.Color{1.0, 0.8, 0.0}
@@ -352,9 +381,113 @@ func (ga *G3NAdapter) SetBackgroundColor(color adapter.Color) {
 	}
 }
 
-// NewColor creates a new color
-func NewColor(r, g, b, a float64) adapter.Color {
-	return adapter.NewColor(r, g, b, a)
+// RegisterInputHandler registra un handler di input
+func (ga *G3NAdapter) RegisterInputHandler(handler input.InputHandler) {
+	ga.inputManager.RegisterInputHandler(handler)
+}
+
+// UnregisterInputHandler rimuove un handler di input
+func (ga *G3NAdapter) UnregisterInputHandler(handler input.InputHandler) {
+	ga.inputManager.UnregisterInputHandler(handler)
+}
+
+// setupInputHandling configura la gestione degli input
+func (ga *G3NAdapter) setupInputHandling() {
+	// Sottoscrizione agli eventi di tastiera
+	ga.app.Subscribe(window.OnKeyDown, ga.onKeyDown)
+	ga.app.Subscribe(window.OnKeyUp, ga.onKeyUp)
+
+	// Sottoscrizione agli eventi del mouse
+	ga.app.Subscribe(window.OnCursor, ga.onMouseMove)
+	ga.app.Subscribe(window.OnMouseDown, ga.onMouseDown)
+	ga.app.Subscribe(window.OnMouseUp, ga.onMouseUp)
+}
+
+// onKeyDown gestisce gli eventi di pressione dei tasti
+func (ga *G3NAdapter) onKeyDown(evname string, ev interface{}) {
+	kev := ev.(*window.KeyEvent)
+
+	// Crea un evento di input generico
+	event := &input.KeyEvent{
+		Key:    int(kev.Key),
+		Action: input.Press,
+		Mods:   int(kev.Mods),
+		Type:   input.EventKeyDown,
+		Source: kev,
+	}
+
+	// Invia l'evento a tutti gli handler registrati
+	ga.inputManager.DispatchEvent(event)
+}
+
+// onKeyUp gestisce gli eventi di rilascio dei tasti
+func (ga *G3NAdapter) onKeyUp(evname string, ev interface{}) {
+	kev := ev.(*window.KeyEvent)
+
+	// Crea un evento di input generico
+	event := &input.KeyEvent{
+		Key:    int(kev.Key),
+		Action: input.Release,
+		Mods:   int(kev.Mods),
+		Type:   input.EventKeyUp,
+		Source: kev,
+	}
+
+	// Invia l'evento a tutti gli handler registrati
+	ga.inputManager.DispatchEvent(event)
+}
+
+// onMouseMove gestisce gli eventi di movimento del mouse
+func (ga *G3NAdapter) onMouseMove(evname string, ev interface{}) {
+	// In g3n, gli eventi di movimento del mouse sono di tipo CursorEvent
+	cev := ev.(*window.CursorEvent)
+
+	// Crea un evento di input generico
+	event := &input.MouseEvent{
+		X:      float64(cev.Xpos),
+		Y:      float64(cev.Ypos),
+		Type:   input.EventMouseMove,
+		Source: cev,
+	}
+
+	// Invia l'evento a tutti gli handler registrati
+	ga.inputManager.DispatchEvent(event)
+}
+
+// onMouseDown gestisce gli eventi di pressione dei pulsanti del mouse
+func (ga *G3NAdapter) onMouseDown(evname string, ev interface{}) {
+	mev := ev.(*window.MouseEvent)
+
+	// Crea un evento di input generico
+	event := &input.MouseEvent{
+		X:      float64(mev.Xpos),
+		Y:      float64(mev.Ypos),
+		Button: int(mev.Button),
+		Action: input.Press,
+		Type:   input.EventMouseDown,
+		Source: mev,
+	}
+
+	// Invia l'evento a tutti gli handler registrati
+	ga.inputManager.DispatchEvent(event)
+}
+
+// onMouseUp gestisce gli eventi di rilascio dei pulsanti del mouse
+func (ga *G3NAdapter) onMouseUp(evname string, ev interface{}) {
+	mev := ev.(*window.MouseEvent)
+
+	// Crea un evento di input generico
+	event := &input.MouseEvent{
+		X:      float64(mev.Xpos),
+		Y:      float64(mev.Ypos),
+		Button: int(mev.Button),
+		Action: input.Release,
+		Type:   input.EventMouseUp,
+		Source: mev,
+	}
+
+	// Invia l'evento a tutti gli handler registrati
+	ga.inputManager.DispatchEvent(event)
 }
 
 // onWindowResize handles window resizing

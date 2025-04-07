@@ -5,6 +5,8 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"os"
+	"runtime/pprof"
 	"time"
 
 	"github.com/alexanderi96/go-space-engine/core/units"
@@ -17,7 +19,20 @@ import (
 	"github.com/alexanderi96/go-space-engine/simulation/world"
 )
 
+const (
+	shouldBeProfiled = true
+)
+
 func main() {
+	if shouldBeProfiled {
+		f, err := os.Create("cpu.pprof")
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+
 	log.Println("Initializing G3N Physics example with Direct Adapter")
 
 	// Crea la configurazione della simulazione
@@ -49,7 +64,7 @@ func main() {
 	adapter := g3n.NewG3NAdapter()
 
 	// Configura l'adapter
-	adapter.SetBackgroundColor(g3n.NewColor(0.2, 0.2, 0.2, 1.0)) // Dark blue background for space
+	adapter.SetBackgroundColor(g3n.NewColor(0.0, 0.0, 0.2, 1.0)) // Dark blue background for space
 
 	// Variabili per il timing
 	lastUpdateTime := time.Now()
@@ -67,7 +82,7 @@ func main() {
 		}
 
 		// Esegui un passo della simulazione
-		w.Step(0.01)
+		w.Step(dt)
 
 		// Renderizza il mondo
 		adapter.RenderWorld(w)
@@ -88,7 +103,7 @@ func createSolarSystem(w world.World) {
 
 	// Massa fissa del sole - valore elevato per garantire orbite stabili
 	// In una simulazione, i rapporti relativi sono più importanti dei valori assoluti
-	solarMass := 1e11 // Simplified value
+	solarMass := 2e12 // Simplified value
 
 	log.Printf("Massa del sole: %e kg", solarMass)
 

@@ -3,6 +3,7 @@ package adapter
 
 import (
 	"github.com/alexanderi96/go-space-engine/core/vector"
+	"github.com/alexanderi96/go-space-engine/entity/input"
 	"github.com/alexanderi96/go-space-engine/physics/body"
 	"github.com/alexanderi96/go-space-engine/physics/space"
 	"github.com/alexanderi96/go-space-engine/simulation/world"
@@ -107,6 +108,10 @@ type RenderAdapter interface {
 	SetRenderForces(render bool)
 	// IsRenderForces returns true if force vectors are being rendered
 	IsRenderForces() bool
+
+	// Metodi per la gestione degli input
+	RegisterInputHandler(handler input.InputHandler)
+	UnregisterInputHandler(handler input.InputHandler)
 }
 
 // BaseRenderAdapter implements a base adapter for rendering
@@ -118,6 +123,7 @@ type BaseRenderAdapter struct {
 	renderVelocities    bool
 	renderAccelerations bool
 	renderForces        bool
+	inputManager        *input.InputManager
 }
 
 // NewBaseRenderAdapter creates a new base adapter for rendering
@@ -130,6 +136,7 @@ func NewBaseRenderAdapter(renderer Renderer) *BaseRenderAdapter {
 		renderVelocities:    false,
 		renderAccelerations: false,
 		renderForces:        false,
+		inputManager:        input.NewInputManager(),
 	}
 }
 
@@ -258,4 +265,14 @@ func (ra *BaseRenderAdapter) SetRenderForces(render bool) {
 // IsRenderForces returns true if force vectors are being rendered
 func (ra *BaseRenderAdapter) IsRenderForces() bool {
 	return ra.renderForces
+}
+
+// RegisterInputHandler registra un handler di input
+func (ra *BaseRenderAdapter) RegisterInputHandler(handler input.InputHandler) {
+	ra.inputManager.RegisterInputHandler(handler)
+}
+
+// UnregisterInputHandler rimuove un handler di input
+func (ra *BaseRenderAdapter) UnregisterInputHandler(handler input.InputHandler) {
+	ra.inputManager.UnregisterInputHandler(handler)
 }
