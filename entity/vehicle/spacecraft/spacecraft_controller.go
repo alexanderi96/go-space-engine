@@ -141,19 +141,40 @@ func (c *SpacecraftController) ApplyMainThrust() {
 		NormalizeAngle(rotation.Z()),
 	)
 
-	// Convert rotation angle to radians (using only Y rotation for this simplified example)
+	// Convert rotation angles to radians
+	rotX := normalizedRotation.X() * (math.Pi / 180.0)
 	rotY := normalizedRotation.Y() * (math.Pi / 180.0)
+	rotZ := normalizedRotation.Z() * (math.Pi / 180.0)
 
-	// Calculate direction vector (simplified rotation around Y axis only for this example)
-	// Forward vector (0,0,1) rotated around Y axis
-	sinY := math.Sin(rotY)
+	// Start with forward vector (0,0,1)
+	forwardVector := vector.NewVector3(0, 0, 1)
+
+	// Apply rotations in order: Z (roll), X (pitch), Y (yaw)
+	// This is a simplified rotation calculation and might not be 100% accurate for all cases
+
+	// Roll (Z-axis rotation)
+	cosZ := math.Cos(rotZ)
+	sinZ := math.Sin(rotZ)
+	tempX := forwardVector.X()*cosZ - forwardVector.Y()*sinZ
+	tempY := forwardVector.X()*sinZ + forwardVector.Y()*cosZ
+	forwardVector = vector.NewVector3(tempX, tempY, forwardVector.Z())
+
+	// Pitch (X-axis rotation)
+	cosX := math.Cos(rotX)
+	sinX := math.Sin(rotX)
+	tempY = forwardVector.Y()*cosX - forwardVector.Z()*sinX
+	tempZ := forwardVector.Y()*sinX + forwardVector.Z()*cosX
+	forwardVector = vector.NewVector3(forwardVector.X(), tempY, tempZ)
+
+	// Yaw (Y-axis rotation)
 	cosY := math.Cos(rotY)
+	sinY := math.Sin(rotY)
+	tempX = forwardVector.X()*cosY + forwardVector.Z()*sinY
+	tempZ = -forwardVector.X()*sinY + forwardVector.Z()*cosY
+	forwardVector = vector.NewVector3(tempX, forwardVector.Y(), tempZ)
 
-	thrustDir := vector.NewVector3(
-		sinY, // X component
-		0,    // Y component
-		cosY, // Z component
-	).Normalize()
+	// Normalize the direction vector
+	thrustDir := forwardVector.Normalize()
 
 	// Apply the thrust force
 	thrustForce := thrustDir.Scale(c.maxThrust * c.thrustLevel)

@@ -8,6 +8,6 @@ import (
 
 func CalculateOrbitalVelocity(mass float64, distance float64) float64 {
 	// Formula: v = sqrt(G * M / r)
-	velocity := math.Sqrt(constants.G*mass/distance) / 2
+	velocity := math.Sqrt(constants.G * mass / distance)
 	return velocity
 }
