@@ -34,19 +34,15 @@ type Entity interface {
 
 // BaseEntity provides a basic implementation of the Entity interface
 type BaseEntity struct {
-	id         string
-	body       body.Body
-	rotation   vector.Vector3
-	angularVel vector.Vector3
+	id   string
+	body body.Body
 }
 
 // NewBaseEntity creates a new base entity with the given parameters
 func NewBaseEntity(id string, body body.Body) *BaseEntity {
 	return &BaseEntity{
-		id:         id,
-		body:       body,
-		rotation:   vector.Zero3(),
-		angularVel: vector.Zero3(),
+		id:   id,
+		body: body,
 	}
 }
 
@@ -67,7 +63,7 @@ func (e *BaseEntity) GetPosition() vector.Vector3 {
 
 // GetRotation returns the current rotation of the entity
 func (e *BaseEntity) GetRotation() vector.Vector3 {
-	return e.rotation
+	return e.body.Rotation()
 }
 
 // GetVelocity returns the current velocity of the entity
@@ -77,19 +73,16 @@ func (e *BaseEntity) GetVelocity() vector.Vector3 {
 
 // GetAngularVelocity returns the current angular velocity of the entity
 func (e *BaseEntity) GetAngularVelocity() vector.Vector3 {
-	return e.angularVel
+	return e.body.AngularVelocity()
 }
 
 // SetAngularVelocity sets the angular velocity of the entity
 func (e *BaseEntity) SetAngularVelocity(angVel vector.Vector3) {
-	e.angularVel = angVel
+	e.body.SetAngularVelocity(angVel)
 }
 
 // Update updates the entity's state based on its physical body
 func (e *BaseEntity) Update(deltaTime float64) {
-	// Update rotation based on angular velocity
-	e.rotation = e.rotation.Add(e.angularVel.Scale(deltaTime))
-
-	// Update the physical body
+	// Update the physical body (which now handles rotation)
 	e.body.Update(deltaTime)
 }

@@ -9,7 +9,6 @@ import (
 	"runtime/pprof"
 	"time"
 
-	"github.com/alexanderi96/go-space-engine/core/constants"
 	"github.com/alexanderi96/go-space-engine/core/units"
 	"github.com/alexanderi96/go-space-engine/core/vector"
 	"github.com/alexanderi96/go-space-engine/physics/body"
@@ -66,10 +65,10 @@ func main() {
 	// createCentralBody(w)
 
 	// Create a cube of bodies (non-static, influenced by gravity)
-	createCuboidFormation(w, 512, 50.0, 100.0, 5.0)
+	// createCuboidFormation(w, 512, 50.0, 100.0, 5.0)
 
 	// Other available formations:
-	// createSphereFormation(w, 300, 40.0, 80.0, 5.0)
+	createSphereFormation(w, 300, 40.0, 80.0, 5.0)
 	// createRingFormation(w, 200, 60.0, 80.0, 5.0)
 	// createSpiralFormation(w, 200, 20.0, 80.0, 5.0, 3)
 	// createBinarySystem(w, 200, 5.0)
@@ -78,7 +77,7 @@ func main() {
 	adapter := g3n.NewG3NAdapter()
 
 	// Configure the adapter
-	adapter.SetBackgroundColor(g3n.NewColor(1.0, 1.0, 1.0, 1.0)) // Very dark blue background for space
+	adapter.SetBackgroundColor(g3n.NewColor(0.0, 0.0, 0.1, 1.0)) // Very dark blue background for space
 
 	// Variables for timing
 	lastUpdateTime := time.Now()
@@ -133,7 +132,7 @@ func createCuboidFormation(w world.World, count int, minSize, maxSize, minDistan
 	log.Printf("Creating %d bodies in cubic formation", count)
 
 	// Mass of the central body (if present)
-	// centralMass := 1.5e11
+	centralMass := 1.5e11
 
 	// Determine the number of bodies per side to get a perfect cube
 	// Calculate the cubic root rounded to the nearest integer
@@ -166,23 +165,43 @@ func createCuboidFormation(w world.World, count int, minSize, maxSize, minDistan
 				positions = append(positions, position)
 
 				// Create a body with random mass but not too large
-				bodyMass := (rand.Float64()*20 + 5.0) * 1e9 // Mass between 5 and 25
+				bodyMass := (rand.Float64()*20 + 5.0) * 1e9 // Mass between 5 and 25 * 10^9
 
-				// Calculate a small random initial velocity to avoid a perfectly stable configuration
-				// velMagnitude := rand.Float64() * 0.5 // Reduced initial velocity
-				// velX := (rand.Float64()*2.0 - 1.0) * velMagnitude
-				// velY := (rand.Float64()*2.0 - 1.0) * velMagnitude
-				// velZ := (rand.Float64()*2.0 - 1.0) * velMagnitude
+				// Calculate the distance from the center (0,0,0) where the central body is
+				distanceFromCenter := position.Length()
 
-				// velocity := vector.NewVector3(velX, velY, velZ)
+				// Calculate a proper orbital velocity using the utility function
+				// This will give a more realistic orbital motion
+				orbitSpeed := 0.0
+				if distanceFromCenter > 0 {
+					orbitSpeed = force.CalculateOrbitalVelocity(centralMass, distanceFromCenter)
+
+					// Apply a scaling factor to make the simulation visually appealing
+					// We reduce the speed to create a more stable initial state
+					orbitSpeed *= 0.3
+				}
+
+				// Calculate the direction perpendicular to the radius
+				radialDirection := position.Normalize()
+
+				// Choose a reference vector that is not parallel to the radial direction
+				reference := vector.NewVector3(0, 1, 0)
+				if math.Abs(radialDirection.Dot(reference)) > 0.9 {
+					reference = vector.NewVector3(1, 0, 0)
+				}
+
+				// Calculate the perpendicular direction for orbital motion
+				tangentDirection := radialDirection.Cross(reference).Normalize()
+
+				// Calculate the velocity vector
+				velocity := tangentDirection.Scale(orbitSpeed)
 
 				// Create the body
 				newBody := body.NewRigidBody(
 					units.NewQuantity(bodyMass, units.Kilogram),
 					units.NewQuantity(rand.Float64()*0.5+0.5, units.Meter), // Random radius
 					position,
-					// velocity,
-					vector.NewVector3(0, 0, 0),
+					velocity,
 					createRandomMaterial(),
 				)
 
@@ -238,9 +257,8 @@ func createSphereFormation(w world.World, count int, minRadius, maxRadius, minDi
 
 		positions = append(positions, position)
 
-		// Calculate the orbital velocity (but with a random component)
-		distance := position.Length()
-		baseSpeed := math.Sqrt(constants.G*centralMass/distance) * 0.8 // 80% of the theoretical orbital velocity
+		// Calculate the orbital velocity using the utility function
+		orbitSpeed := force.CalculateOrbitalVelocity(centralMass, radius) * 0.8 // 80% of the theoretical orbital velocity
 
 		// Calculate velocity direction with some randomness
 		radialDirection := position.Normalize()
@@ -252,13 +270,13 @@ func createSphereFormation(w world.World, count int, minRadius, maxRadius, minDi
 		}
 
 		// Calculate the perpendicular vector
-		tangent := reference.Cross(radialDirection).Normalize()
+		tangent := radialDirection.Cross(reference).Normalize()
 
 		// Add random component to the velocity
 		randomFactor := 0.2 // 20% randomness
-		velX := tangent.X() * baseSpeed * (1.0 + (rand.Float64()*2-1)*randomFactor)
-		velY := tangent.Y() * baseSpeed * (1.0 + (rand.Float64()*2-1)*randomFactor)
-		velZ := tangent.Z() * baseSpeed * (1.0 + (rand.Float64()*2-1)*randomFactor)
+		velX := tangent.X() * orbitSpeed * (1.0 + (rand.Float64()*2-1)*randomFactor)
+		velY := tangent.Y() * orbitSpeed * (1.0 + (rand.Float64()*2-1)*randomFactor)
+		velZ := tangent.Z() * orbitSpeed * (1.0 + (rand.Float64()*2-1)*randomFactor)
 
 		velocity := vector.NewVector3(velX, velY, velZ)
 
@@ -317,8 +335,8 @@ func createRingFormation(w world.World, count int, minRadius, maxRadius, minDist
 
 		positions = append(positions, position)
 
-		// Calculate the orbital velocity
-		orbitSpeed := math.Sqrt(constants.G * centralMass / radius)
+		// Calculate the orbital velocity using the utility function
+		orbitSpeed := force.CalculateOrbitalVelocity(centralMass, radius)
 
 		// The velocity must be perpendicular to the radius on the ring plane
 		velocity := vector.NewVector3(
@@ -397,8 +415,8 @@ func createSpiralFormation(w world.World, count int, minRadius, maxRadius, minDi
 
 		positions = append(positions, position)
 
-		// Calculate the orbital velocity
-		orbitSpeed := math.Sqrt(constants.G*centralMass/radius) * 0.9
+		// Calculate the orbital velocity using the utility function
+		orbitSpeed := force.CalculateOrbitalVelocity(centralMass, radius) * 0.9
 
 		// The velocity must be perpendicular to the radius
 		velocity := vector.NewVector3(
@@ -433,19 +451,18 @@ func createBinarySystem(w world.World, satelliteCount int, minDistance float64) 
 
 	// Calculation of the orbital velocity for the two central bodies
 	// We assume that the bodies orbit around their center of mass
-	totalMass := mass1 + mass2
+	// totalMass := mass1 + mass2
 
 	// Position of the center of mass
-	centerOfMassX := (mass1*(-separation/2) + mass2*(separation/2)) / totalMass
+	// centerOfMassX := (mass1*(-separation/2) + mass2*(separation/2)) / totalMass
 
 	// Effective distance of each body from the center of mass
-	dist1 := math.Abs((-separation / 2) - centerOfMassX)
-	dist2 := math.Abs((separation / 2) - centerOfMassX)
+	// dist1 := math.Abs((-separation / 2) - centerOfMassX)
+	// dist2 := math.Abs((separation / 2) - centerOfMassX)
 
-	// Orbital velocity
-	orbitPeriod := 2 * math.Pi * math.Sqrt(math.Pow(separation, 3)/(constants.G*totalMass))
-	speed1 := 2 * math.Pi * dist1 / orbitPeriod
-	speed2 := 2 * math.Pi * dist2 / orbitPeriod
+	// Using the utility function to calculate orbital velocities
+	speed1 := force.CalculateOrbitalVelocity(mass2, separation)
+	speed2 := force.CalculateOrbitalVelocity(mass1, separation)
 
 	// Creation of the first central body
 	body1 := body.NewRigidBody(
@@ -510,9 +527,8 @@ func createSatellites(w world.World, count int, minRadius, maxRadius, minDistanc
 
 		positions = append(positions, position)
 
-		// Calculation of the orbital velocity
-		distance := position.Length()
-		orbitSpeed := math.Sqrt(constants.G * centralMass / distance)
+		// Calculation of the orbital velocity using the utility function
+		orbitSpeed := force.CalculateOrbitalVelocity(centralMass, radius)
 
 		// Calculate velocity direction
 		radialDirection := position.Normalize()

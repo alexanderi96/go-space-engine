@@ -71,12 +71,12 @@ func CreateSpacecraft(config SpacecraftConfig) (entity.Entity, *SpacecraftContro
 		mat,
 	)
 
+	// Set initial rotation on the physical body
+	physBody.SetRotation(config.Rotation)
+
 	// Create the entity
 	id := uuid.New().String()
 	spacecraft := entity.NewBaseEntity(id, physBody)
-
-	// Set initial rotation
-	spacecraft.SetAngularVelocity(vector.Zero3())
 
 	// Create the controller
 	controller := NewSpacecraftController(spacecraft, config.MaxThrust, config.MaxTorque)

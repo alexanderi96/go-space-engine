@@ -64,6 +64,16 @@ type Body interface {
 	// SetAcceleration sets the acceleration of the body
 	SetAcceleration(acc vector.Vector3)
 
+	// Rotation returns the rotation of the body
+	Rotation() vector.Vector3
+	// SetRotation sets the rotation of the body
+	SetRotation(rot vector.Vector3)
+
+	// AngularVelocity returns the angular velocity of the body
+	AngularVelocity() vector.Vector3
+	// SetAngularVelocity sets the angular velocity of the body
+	SetAngularVelocity(angVel vector.Vector3)
+
 	// Mass returns the mass of the body
 	Mass() units.Quantity
 	// SetMass sets the mass of the body
@@ -81,6 +91,9 @@ type Body interface {
 
 	// ApplyForce applies a force to the body
 	ApplyForce(force vector.Vector3)
+
+	// ApplyTorque applies a torque to the body
+	ApplyTorque(torque vector.Vector3)
 
 	// Update updates the state of the body
 	Update(dt float64)
@@ -105,6 +118,9 @@ type RigidBody struct {
 	position     vector.Vector3
 	velocity     vector.Vector3
 	acceleration vector.Vector3
+	rotation     vector.Vector3
+	angularVel   vector.Vector3
+	angularAcc   vector.Vector3
 	mass         units.Quantity
 	radius       units.Quantity
 	material     Material
@@ -125,6 +141,9 @@ func NewRigidBody(
 		position:     position,
 		velocity:     velocity,
 		acceleration: vector.Zero3(),
+		rotation:     vector.Zero3(),
+		angularVel:   vector.Zero3(),
+		angularAcc:   vector.Zero3(),
 		mass:         mass,
 		radius:       radius,
 		material:     mat,
@@ -237,10 +256,12 @@ func (rb *RigidBody) Update(dt float64) {
 	if rb.isStatic {
 		rb.velocity = vector.Zero3()
 		rb.acceleration = vector.Zero3()
+		rb.angularVel = vector.Zero3()
+		rb.angularAcc = vector.Zero3()
 		return
 	}
 
-	// Verlet integration
+	// Verlet integration for linear motion
 	// x(t+dt) = x(t) + v(t)*dt + 0.5*a(t)*dt^2
 	// v(t+dt) = v(t) + 0.5*(a(t) + a(t+dt))*dt
 
@@ -259,6 +280,19 @@ func (rb *RigidBody) Update(dt float64) {
 	// Update the velocity (using the average of accelerations)
 	avgAcceleration := oldAcceleration.Add(rb.acceleration).Scale(0.5)
 	rb.velocity = rb.velocity.Add(avgAcceleration.Scale(dt))
+
+	// Update rotation based on angular velocity
+	oldAngularAcc := rb.angularAcc
+
+	// Update rotation
+	rb.rotation = rb.rotation.Add(rb.angularVel.Scale(dt))
+
+	// Reset angular acceleration (will be recalculated in the next cycle)
+	rb.angularAcc = vector.Zero3()
+
+	// Update angular velocity (using the average of angular accelerations)
+	avgAngularAcc := oldAngularAcc.Add(rb.angularAcc).Scale(0.5)
+	rb.angularVel = rb.angularVel.Add(avgAngularAcc.Scale(dt))
 }
 
 // Temperature returns the temperature of the body
@@ -311,5 +345,43 @@ func (rb *RigidBody) SetStatic(static bool) {
 	if static {
 		rb.velocity = vector.Zero3()
 		rb.acceleration = vector.Zero3()
+		rb.angularVel = vector.Zero3()
+		rb.angularAcc = vector.Zero3()
 	}
+}
+
+// Rotation returns the rotation of the body
+func (rb *RigidBody) Rotation() vector.Vector3 {
+	return rb.rotation
+}
+
+// SetRotation sets the rotation of the body
+func (rb *RigidBody) SetRotation(rot vector.Vector3) {
+	rb.rotation = rot
+}
+
+// AngularVelocity returns the angular velocity of the body
+func (rb *RigidBody) AngularVelocity() vector.Vector3 {
+	return rb.angularVel
+}
+
+// SetAngularVelocity sets the angular velocity of the body
+func (rb *RigidBody) SetAngularVelocity(angVel vector.Vector3) {
+	rb.angularVel = angVel
+
+	// If the body is static, angular velocity must be zero
+	if rb.isStatic {
+		rb.angularVel = vector.Zero3()
+	}
+}
+
+// ApplyTorque applies a torque to the body
+func (rb *RigidBody) ApplyTorque(torque vector.Vector3) {
+	if rb.isStatic {
+		return
+	}
+
+	// Add the torque to the current angular acceleration
+	// In a more complex implementation, this would consider the moment of inertia
+	rb.angularAcc = rb.angularAcc.Add(torque)
 }

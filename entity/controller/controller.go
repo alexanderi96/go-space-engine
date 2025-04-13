@@ -22,15 +22,13 @@ type Controller interface {
 
 // BaseController provides a basic implementation of the Controller interface
 type BaseController struct {
-	entity     entity.Entity
-	angularAcc vector.Vector3
+	entity entity.Entity
 }
 
 // NewBaseController creates a new base controller for the given entity
 func NewBaseController(entity entity.Entity) *BaseController {
 	return &BaseController{
-		entity:     entity,
-		angularAcc: vector.Zero3(),
+		entity: entity,
 	}
 }
 
@@ -49,27 +47,15 @@ func (c *BaseController) ApplyForce(force vector.Vector3) {
 
 // ApplyTorque applies a torque to the entity
 func (c *BaseController) ApplyTorque(torque vector.Vector3) {
-	// Store the angular acceleration to be applied during update
-	c.angularAcc = c.angularAcc.Add(torque)
+	// Apply torque directly to the physical body
+	body := c.entity.GetBody()
+	if body != nil {
+		body.ApplyTorque(torque)
+	}
 }
 
 // Update updates the controller's state
 func (c *BaseController) Update(deltaTime float64) {
-	// Apply angular acceleration to update angular velocity
-	if c.angularAcc.LengthSquared() > 1e-10 {
-		// Get current angular velocity
-		currentAngVel := c.entity.GetAngularVelocity()
-
-		// Calculate new angular velocity based on angular acceleration
-		newAngVel := currentAngVel.Add(c.angularAcc.Scale(deltaTime))
-
-		// Set the new angular velocity on the entity
-		c.entity.SetAngularVelocity(newAngVel)
-
-		// Reset angular acceleration
-		c.angularAcc = vector.Zero3()
-	}
-
-	// Update the entity
+	// Update the entity (which updates the physical body)
 	c.entity.Update(deltaTime)
 }
