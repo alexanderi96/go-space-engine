@@ -4,7 +4,6 @@ package g3n
 import (
 	"time"
 
-	"github.com/alexanderi96/go-space-engine/entity/input"
 	"github.com/alexanderi96/go-space-engine/physics/body"
 	"github.com/alexanderi96/go-space-engine/render/adapter"
 	"github.com/alexanderi96/go-space-engine/simulation/world"
@@ -36,23 +35,21 @@ type BodyMesh struct {
 
 // G3NAdapter is an adapter for rendering with G3N
 type G3NAdapter struct {
-	app          *app.Application
-	scene        *core.Node
-	camera       *camera.Camera
-	cameraCtrl   *camera.OrbitControl
-	bodyMeshes   map[uuid.UUID]*BodyMesh
-	bgColor      adapter.Color
-	debugMode    bool
-	inputManager *input.InputManager
+	app        *app.Application
+	scene      *core.Node
+	camera     *camera.Camera
+	cameraCtrl *camera.OrbitControl
+	bodyMeshes map[uuid.UUID]*BodyMesh
+	bgColor    adapter.Color
+	debugMode  bool
 }
 
 // NewG3NAdapter creates a new G3N adapter
 func NewG3NAdapter() *G3NAdapter {
 	return &G3NAdapter{
-		bodyMeshes:   make(map[uuid.UUID]*BodyMesh),
-		bgColor:      adapter.NewColor(1.0, 1.0, 1.0, 1.0), // White background
-		debugMode:    false,
-		inputManager: input.NewInputManager(),
+		bodyMeshes: make(map[uuid.UUID]*BodyMesh),
+		bgColor:    adapter.NewColor(1.0, 1.0, 1.0, 1.0), // White background
+		debugMode:  false,
 	}
 }
 
@@ -134,9 +131,6 @@ func (ga *G3NAdapter) initialize() {
 
 	// Add a handler for window resizing
 	ga.app.Subscribe(window.OnWindowSize, ga.onWindowResize)
-
-	// Configura la gestione degli input
-	ga.setupInputHandling()
 
 	// Set the initial aspect ratio of the camera
 	width, height := ga.app.GetSize()
@@ -379,115 +373,6 @@ func (ga *G3NAdapter) SetBackgroundColor(color adapter.Color) {
 	if ga.app != nil {
 		ga.app.Gls().ClearColor(float32(color.R), float32(color.G), float32(color.B), float32(color.A))
 	}
-}
-
-// RegisterInputHandler registra un handler di input
-func (ga *G3NAdapter) RegisterInputHandler(handler input.InputHandler) {
-	ga.inputManager.RegisterInputHandler(handler)
-}
-
-// UnregisterInputHandler rimuove un handler di input
-func (ga *G3NAdapter) UnregisterInputHandler(handler input.InputHandler) {
-	ga.inputManager.UnregisterInputHandler(handler)
-}
-
-// setupInputHandling configura la gestione degli input
-func (ga *G3NAdapter) setupInputHandling() {
-	// Sottoscrizione agli eventi di tastiera
-	ga.app.Subscribe(window.OnKeyDown, ga.onKeyDown)
-	ga.app.Subscribe(window.OnKeyUp, ga.onKeyUp)
-
-	// Sottoscrizione agli eventi del mouse
-	ga.app.Subscribe(window.OnCursor, ga.onMouseMove)
-	ga.app.Subscribe(window.OnMouseDown, ga.onMouseDown)
-	ga.app.Subscribe(window.OnMouseUp, ga.onMouseUp)
-}
-
-// onKeyDown gestisce gli eventi di pressione dei tasti
-func (ga *G3NAdapter) onKeyDown(evname string, ev interface{}) {
-	kev := ev.(*window.KeyEvent)
-
-	// Crea un evento di input generico
-	event := &input.KeyEvent{
-		Key:    int(kev.Key),
-		Action: input.Press,
-		Mods:   int(kev.Mods),
-		Type:   input.EventKeyDown,
-		Source: kev,
-	}
-
-	// Invia l'evento a tutti gli handler registrati
-	ga.inputManager.DispatchEvent(event)
-}
-
-// onKeyUp gestisce gli eventi di rilascio dei tasti
-func (ga *G3NAdapter) onKeyUp(evname string, ev interface{}) {
-	kev := ev.(*window.KeyEvent)
-
-	// Crea un evento di input generico
-	event := &input.KeyEvent{
-		Key:    int(kev.Key),
-		Action: input.Release,
-		Mods:   int(kev.Mods),
-		Type:   input.EventKeyUp,
-		Source: kev,
-	}
-
-	// Invia l'evento a tutti gli handler registrati
-	ga.inputManager.DispatchEvent(event)
-}
-
-// onMouseMove gestisce gli eventi di movimento del mouse
-func (ga *G3NAdapter) onMouseMove(evname string, ev interface{}) {
-	// In g3n, gli eventi di movimento del mouse sono di tipo CursorEvent
-	cev := ev.(*window.CursorEvent)
-
-	// Crea un evento di input generico
-	event := &input.MouseEvent{
-		X:      float64(cev.Xpos),
-		Y:      float64(cev.Ypos),
-		Type:   input.EventMouseMove,
-		Source: cev,
-	}
-
-	// Invia l'evento a tutti gli handler registrati
-	ga.inputManager.DispatchEvent(event)
-}
-
-// onMouseDown gestisce gli eventi di pressione dei pulsanti del mouse
-func (ga *G3NAdapter) onMouseDown(evname string, ev interface{}) {
-	mev := ev.(*window.MouseEvent)
-
-	// Crea un evento di input generico
-	event := &input.MouseEvent{
-		X:      float64(mev.Xpos),
-		Y:      float64(mev.Ypos),
-		Button: int(mev.Button),
-		Action: input.Press,
-		Type:   input.EventMouseDown,
-		Source: mev,
-	}
-
-	// Invia l'evento a tutti gli handler registrati
-	ga.inputManager.DispatchEvent(event)
-}
-
-// onMouseUp gestisce gli eventi di rilascio dei pulsanti del mouse
-func (ga *G3NAdapter) onMouseUp(evname string, ev interface{}) {
-	mev := ev.(*window.MouseEvent)
-
-	// Crea un evento di input generico
-	event := &input.MouseEvent{
-		X:      float64(mev.Xpos),
-		Y:      float64(mev.Ypos),
-		Button: int(mev.Button),
-		Action: input.Release,
-		Type:   input.EventMouseUp,
-		Source: mev,
-	}
-
-	// Invia l'evento a tutti gli handler registrati
-	ga.inputManager.DispatchEvent(event)
 }
 
 // onWindowResize handles window resizing
