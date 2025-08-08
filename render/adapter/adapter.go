@@ -2,6 +2,7 @@
 package adapter
 
 import (
+	"github.com/alexanderi96/go-space-engine/core/units"
 	"github.com/alexanderi96/go-space-engine/core/vector"
 	"github.com/alexanderi96/go-space-engine/physics/body"
 	"github.com/alexanderi96/go-space-engine/physics/space"
@@ -161,7 +162,8 @@ func (ra *BaseRenderAdapter) RenderWorld(w world.World) {
 	if ra.renderBoundingBoxes {
 		for _, b := range w.GetBodies() {
 			position := b.Position()
-			radius := b.Radius().Value()
+			// Convert radius to standard unit (meters) for consistent rendering
+			radius := units.ConvertToStandardUnit(b.Radius())
 			min := vector.NewVector3(position.X()-radius, position.Y()-radius, position.Z()-radius)
 			max := vector.NewVector3(position.X()+radius, position.Y()+radius, position.Z()+radius)
 			aabb := space.NewAABB(min, max)

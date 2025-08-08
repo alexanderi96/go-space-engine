@@ -37,7 +37,7 @@ func main() {
 
 	// Crea la configurazione della simulazione
 	cfg := config.NewSimulationBuilder().
-		WithTimeStep(0.01).
+		WithTimeStep(0.001).
 		WithMaxBodies(1000).
 		WithGravity(true).
 		WithCollisions(true).
@@ -68,6 +68,7 @@ func main() {
 
 	// Variabili per il timing
 	lastUpdateTime := time.Now()
+	// printed := lastUpdateTime
 
 	// Avvia il loop di rendering
 	adapter.Run(func(deltaTime time.Duration) {
@@ -81,8 +82,17 @@ func main() {
 			dt = 0.1
 		}
 
-		// Esegui un passo della simulazione
-		w.Step(dt)
+		// Esegui un passo della simulazione con timestep fisso per garantire stabilità
+		w.Step(0.001)
+
+		// if currentTime.Sub(printed) > 1*time.Second {
+		// 	printed = currentTime
+
+		// 	for _, body := range w.GetBodies() {
+
+		// 		log.Printf("Planet %s: Position=%v, Velocity=%v", body.ID(), body.Position(), body.Velocity())
+		// 	}
+		// }
 
 		// Renderizza il mondo
 		adapter.RenderWorld(w)
@@ -103,7 +113,7 @@ func createSolarSystem(w world.World) {
 
 	// Massa fissa del sole - valore elevato per garantire orbite stabili
 	// In una simulazione, i rapporti relativi sono più importanti dei valori assoluti
-	solarMass := 2e12 // Simplified value
+	solarMass := 1e14 // Simplified value
 
 	log.Printf("Massa del sole: %e kg", solarMass)
 
@@ -114,7 +124,7 @@ func createSolarSystem(w world.World) {
 		vector.NewVector3(0, 0, 0),                                 // Velocità zero
 		createMaterial("Sun", 0.9, 0.5, [3]float64{1.0, 0.8, 0.0}), // Yellow color
 	)
-	sun.SetStatic(false) // The sun is static (does not move)
+	sun.SetStatic(true) // The sun is static (does not move)
 	w.AddBody(sun)
 	log.Printf("Sun created: ID=%v, Position=%v", sun.ID(), sun.Position())
 

@@ -337,3 +337,22 @@ func (q Quantity) Div(scalar float64) Quantity {
 	}
 	return NewQuantity(q.value/scalar, q.unit)
 }
+
+// ConvertToStandardUnit converts a quantity to a standard unit based on its type
+// This ensures consistent rendering regardless of the original unit
+func ConvertToStandardUnit(quantity Quantity) float64 {
+	switch quantity.Unit().Type() {
+	case Length:
+		// Convert all lengths to meters
+		return quantity.ConvertTo(Meter).Value()
+	case Mass:
+		// Convert all masses to kilograms
+		return quantity.ConvertTo(Kilogram).Value()
+	case Temperature:
+		// Convert all temperatures to kelvin
+		return quantity.ConvertTo(Kelvin).Value()
+	default:
+		// For other types, just return the value
+		return quantity.Value()
+	}
+}
