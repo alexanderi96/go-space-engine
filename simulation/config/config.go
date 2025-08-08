@@ -29,6 +29,9 @@ type Config struct {
 	WorldMin vector.Vector3 `json:"worldMin"` // Minimum point of world boundaries
 	WorldMax vector.Vector3 `json:"worldMax"` // Maximum point of world boundaries
 
+	// World boundaries units
+	WorldBoundsUnit units.Unit `json:"worldBoundsUnit"` // Unit for world boundaries (default: Meter)
+
 	// Physics configuration
 	Restitution float64 `json:"restitution"` // Coefficient of restitution (elasticity)
 
@@ -49,8 +52,9 @@ func NewDefaultConfig() *Config {
 		OctreeMaxObjects: 10,
 		OctreeMaxLevels:  8,
 
-		WorldMin: vector.NewVector3(-100, -100, -100),
-		WorldMax: vector.NewVector3(100, 100, 100),
+		WorldMin:        vector.NewVector3(-100, -100, -100),
+		WorldMax:        vector.NewVector3(100, 100, 100),
+		WorldBoundsUnit: units.Meter,
 
 		Restitution: 0.5,
 
@@ -59,8 +63,33 @@ func NewDefaultConfig() *Config {
 }
 
 // GetWorldBounds returns the world boundaries as AABB
+// Converts boundaries to standard units (meters) for consistent physics
 func (c *Config) GetWorldBounds() *space.AABB {
-	return space.NewAABB(c.WorldMin, c.WorldMax)
+	// Convert min and max points to standard units if needed
+	var minConverted, maxConverted vector.Vector3
+
+	if c.WorldBoundsUnit.Type() == units.Length && c.WorldBoundsUnit != units.Meter {
+		// Convert each coordinate to meters
+		conversionFactor := c.WorldBoundsUnit.ConvertTo(1.0, units.Meter)
+
+		minConverted = vector.NewVector3(
+			c.WorldMin.X()*conversionFactor,
+			c.WorldMin.Y()*conversionFactor,
+			c.WorldMin.Z()*conversionFactor,
+		)
+
+		maxConverted = vector.NewVector3(
+			c.WorldMax.X()*conversionFactor,
+			c.WorldMax.Y()*conversionFactor,
+			c.WorldMax.Z()*conversionFactor,
+		)
+	} else {
+		// Already in meters or not a length unit
+		minConverted = c.WorldMin
+		maxConverted = c.WorldMax
+	}
+
+	return space.NewAABB(minConverted, maxConverted)
 }
 
 // GetTimeStepQuantity returns the time step as a Quantity
@@ -155,10 +184,23 @@ func (b *SimulationBuilder) WithOctreeConfig(maxObjects, maxLevels int) *Simulat
 	return b
 }
 
-// WithWorldBounds sets the world boundaries
+// WithWorldBounds sets the world boundaries (default unit: Meter)
 func (b *SimulationBuilder) WithWorldBounds(min, max vector.Vector3) *SimulationBuilder {
 	b.config.WorldMin = min
 	b.config.WorldMax = max
+	b.config.WorldBoundsUnit = units.Meter
+	return b
+}
+
+// WithWorldBoundsWithUnit sets the world boundaries with a specific unit
+func (b *SimulationBuilder) WithWorldBoundsWithUnit(min, max vector.Vector3, unit units.Unit) *SimulationBuilder {
+	if unit.Type() != units.Length {
+		panic("World bounds unit must be a length unit")
+	}
+
+	b.config.WorldMin = min
+	b.config.WorldMax = max
+	b.config.WorldBoundsUnit = unit
 	return b
 }
 

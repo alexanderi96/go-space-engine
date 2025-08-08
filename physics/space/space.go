@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/alexanderi96/go-space-engine/core/constants"
+	"github.com/alexanderi96/go-space-engine/core/units"
 	"github.com/alexanderi96/go-space-engine/core/vector"
 	"github.com/alexanderi96/go-space-engine/physics/body"
 )
@@ -386,7 +387,8 @@ func (ot *Octree) getIndices(b body.Body) []int {
 	result := make([]int, 0, 8)
 	center := ot.bounds.Center()
 	position := b.Position()
-	radius := b.Radius().Value()
+	// Convert radius to standard unit (meters) for consistent physics
+	radius := units.ConvertToStandardUnit(b.Radius())
 
 	// Determine in which octants the body is located
 	top := position.Y()+radius > center.Y()
@@ -445,7 +447,8 @@ func (ot *Octree) getIndices(b body.Body) []int {
 
 // updateMassAndCenterOfMass updates the center of mass and total mass
 func (ot *Octree) updateMassAndCenterOfMass(b body.Body, adding bool) {
-	mass := b.Mass().Value()
+	// Convert mass to standard unit (kilograms)
+	mass := units.ConvertToStandardUnit(b.Mass())
 	position := b.Position()
 
 	if adding {
@@ -541,8 +544,8 @@ func (ot *Octree) calculateGravityRecursive(b body.Body, theta float64, force *v
 // calculateLeafNodeGravity calculates the gravitational force for each body in the leaf node
 func (ot *Octree) calculateLeafNodeGravity(b body.Body, force *vector.Vector3) {
 
-	// Body mass
-	bodyMass := b.Mass().Value()
+	// Body mass (convert to standard unit - kilograms)
+	bodyMass := units.ConvertToStandardUnit(b.Mass())
 	bodyPos := b.Position()
 
 	// Calculate the force for each body in the node
@@ -566,7 +569,9 @@ func (ot *Octree) calculateLeafNodeGravity(b body.Body, force *vector.Vector3) {
 		direction := deltaPos.Scale(1.0 / distance)
 
 		// F = G * m1 * m2 / r^2
-		forceMagnitude := constants.G * bodyMass * obj.Mass().Value() / distanceSquared
+		// Convert mass to standard unit (kilograms)
+		objMass := units.ConvertToStandardUnit(obj.Mass())
+		forceMagnitude := constants.G * bodyMass * objMass / distanceSquared
 
 		// Add the force to the total force vector
 		forceVector := *force
@@ -577,8 +582,8 @@ func (ot *Octree) calculateLeafNodeGravity(b body.Body, force *vector.Vector3) {
 // approximateGravityWithCenterOfMass approximates the gravitational force using the center of mass
 func (ot *Octree) approximateGravityWithCenterOfMass(b body.Body, force *vector.Vector3) {
 
-	// Body mass
-	bodyMass := b.Mass().Value()
+	// Body mass (convert to standard unit - kilograms)
+	bodyMass := units.ConvertToStandardUnit(b.Mass())
 	bodyPos := b.Position()
 
 	// Calculate the direction vector

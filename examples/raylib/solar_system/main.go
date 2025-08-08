@@ -26,9 +26,10 @@ func main() {
 		WithGravity(true).
 		WithCollisions(true).
 		WithBoundaryCollisions(true).
-		WithWorldBounds(
+		WithWorldBoundsWithUnit(
 			vector.NewVector3(-500, -500, -500),
 			vector.NewVector3(500, 500, 500),
+			units.Kilometer, // Use kilometers for world bounds
 		).
 		WithOctreeConfig(10, 8).
 		Build()
